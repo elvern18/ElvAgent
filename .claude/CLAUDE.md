@@ -6,11 +6,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ElvAgent is an autonomous AI newsletter agent that curates and publishes AI news hourly across multiple platforms (Discord, X, Instagram, Telegram, Markdown). Built to demonstrate Claude Code best practices including MCP servers, skills, and subagents.
 
+## ⚠️ CRITICAL: Always Use Virtual Environment
+
+**IMPORTANT:** This project uses a Python virtual environment at `.venv/`.
+
+**ALWAYS activate it before running ANY Python command:**
+
+```bash
+# Activate virtual environment (do this first!)
+source .venv/bin/activate
+
+# Verify it's active (should show .venv path)
+which python
+```
+
+**All commands below assume .venv is activated.**
+
+If you see `ModuleNotFoundError`, you forgot to activate the venv!
+
 ## Common Commands
 
 ### Development
 ```bash
-# Install dependencies
+# ALWAYS activate venv first!
+source .venv/bin/activate
+
+# Install dependencies (first time only)
 pip install -r requirements.txt
 
 # Run single test cycle (doesn't publish)
@@ -21,17 +42,23 @@ pytest tests/
 
 # Run specific test file
 pytest tests/unit/test_researchers.py -v
+
+# Run foundation test script
+python scripts/test_foundation.py
 ```
 
 ### Database
 ```bash
-# Initialize database
-python -c "from src.core.state_manager import StateManager; StateManager().init_db()"
+# Activate venv first!
+source .venv/bin/activate
 
-# Query published items
+# Initialize database
+python -c "from src.core.state_manager import StateManager; import asyncio; asyncio.run(StateManager().init_db())"
+
+# Query published items (doesn't need venv)
 sqlite3 data/state.db "SELECT * FROM published_items ORDER BY published_at DESC LIMIT 10;"
 
-# Check metrics
+# Check metrics (doesn't need venv)
 sqlite3 data/state.db "SELECT * FROM api_metrics WHERE date = date('now');"
 ```
 

@@ -9,9 +9,10 @@ from datetime import date
 @pytest.mark.asyncio
 async def test_init_db(state_manager):
     """Test database initialization."""
+    import aiosqlite
+
     # Database should be initialized by the fixture
     # Just verify we can query it
-    async import aiosqlite
     async with aiosqlite.connect(state_manager.db_path) as db:
         cursor = await db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"

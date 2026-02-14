@@ -12,7 +12,7 @@ from src.research.base import BaseResearcher, ContentItem
 class ArXivResearcher(BaseResearcher):
     """Researcher for ArXiv AI/ML papers."""
 
-    RSS_URL = "http://export.arxiv.org/rss/cs.AI"
+    RSS_URL = "https://export.arxiv.org/rss/cs.AI"
 
     def __init__(self, max_items: int = 5):
         """Initialize ArXiv researcher."""
