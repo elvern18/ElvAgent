@@ -13,8 +13,9 @@ None yet (Phase 1 in progress).
 ## Active Work
 
 ✓ Data layer complete (Agent 1)
+✓ Database MCP server complete (Agent 1)
 ✓ Research layer foundation complete (Agent 2)
-→ Next: Database MCP server, then Publishing layer
+→ Next: Remaining researchers or Publishing layer
 
 ## Agent Status
 
@@ -41,7 +42,7 @@ None yet (Phase 1 in progress).
 - [x] SQLite database schema created
 - [x] Pydantic settings implemented
 - [x] Structured logging set up
-- [ ] Database MCP server working
+- [x] Database MCP server working
 - [x] First researcher (ArXiv) functional
 - [x] Research skill created
 - [x] Base classes created (BaseResearcher, BasePublisher)
@@ -79,8 +80,8 @@ None currently.
 
 ## Metrics
 
-- **Lines of Code:** ~2,100
-- **Files Created:** 20+
-- **Tests Written:** 1 (foundation test)
+- **Lines of Code:** ~2,500
+- **Files Created:** 23
+- **Tests Written:** 16 unit tests (all passing)
 - **API Costs (Today):** $0.00 (no API calls yet)
-- **Phase Completion:** 45%
+- **Phase Completion:** 55%

@@ -150,8 +150,8 @@ ElvAgent/
 - `src/publishing/telegram_publisher.py` - TODO
 - `src/publishing/formatters/` - TODO
 
-### MCP Servers (0/4 files) - 0% Complete
-- `src/mcp_servers/database_server.py` - TODO (HIGH PRIORITY)
+### MCP Servers (1/4 files) - 25% Complete
+- ✓ `src/mcp_servers/database_server.py` - Database MCP server (321 lines)
 - `src/mcp_servers/filesystem_server.py` - TODO
 - `src/mcp_servers/web_scraper_server.py` - TODO
 - `src/mcp_servers/social_media_server.py` - TODO
@@ -165,11 +165,12 @@ ElvAgent/
 - `publish-newsletter/SKILL.md` - TODO
 - `generate-reel-image/SKILL.md` - TODO
 
-### Tests (1/4 files) - 25% Complete
+### Tests (3/4 categories) - 75% Complete
 - ✓ `scripts/test_foundation.py` - Foundation tests (210 lines)
-- `tests/unit/` - TODO
+- ✓ `tests/unit/test_state_manager.py` - State manager tests (9 tests)
+- ✓ `tests/unit/test_database_server.py` - MCP server tests (7 tests)
+- ✓ `tests/conftest.py` - Shared fixtures (154 lines)
 - `tests/integration/` - TODO
-- `tests/fixtures/` - TODO
 
 ### Entry Points (1/1 files) - 100% Complete
 - ✓ `src/main.py` - Main application (88 lines)
