@@ -5,7 +5,12 @@ Tests database, logging, researcher, and configuration.
 """
 import asyncio
 import sys
+import os
 from pathlib import Path
+
+# Set minimal environment for testing
+os.environ.setdefault("ANTHROPIC_API_KEY", "test-key-for-foundation-test")
+os.environ.setdefault("DATABASE_PATH", ":memory:")
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -79,7 +84,9 @@ async def test_researcher():
             print(f"    Authors: {', '.join(item.metadata.get('authors', [])[:2])}")
 
     except Exception as e:
-        print(f"⚠ Research failed (this is okay if offline): {e}")
+        print(f"⚠ Research failed (this is okay if offline or network issues)")
+        print(f"  Error: {type(e).__name__}: {str(e)[:100]}")
+        print("  → This doesn't affect core functionality tests")
 
 
 def test_logging():

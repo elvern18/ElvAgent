@@ -22,7 +22,10 @@ class Settings(BaseSettings):
     project_root: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent)
 
     # Claude API
-    anthropic_api_key: str = Field(..., description="Anthropic API key for Claude")
+    anthropic_api_key: Optional[str] = Field(
+        default=None,
+        description="Anthropic API key for Claude (required for production)"
+    )
     anthropic_model: str = Field(
         default="claude-sonnet-4-5-20250929",
         description="Default Claude model to use"
@@ -99,6 +102,25 @@ class Settings(BaseSettings):
         self.newsletters_dir.mkdir(parents=True, exist_ok=True)
         self.images_dir.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
+
+    def validate_production_config(self) -> bool:
+        """
+        Validate that required configuration for production is present.
+
+        Returns:
+            True if valid, False otherwise
+        """
+        errors = []
+
+        if not self.anthropic_api_key:
+            errors.append("ANTHROPIC_API_KEY is required for production")
+
+        if errors:
+            for error in errors:
+                print(f"Configuration Error: {error}")
+            return False
+
+        return True
 
 
 # Global settings instance
