@@ -78,13 +78,13 @@ Publish (5 platforms in parallel)
 Update State & Track Costs
 ```
 
-## Project Structure
+## Documentation
 
-See [CLAUDE.md](.claude/CLAUDE.md) for detailed architecture documentation.
-
-## Development Status
-
-See [STATUS.md](STATUS.md) for current progress.
+- **[Development Status](docs/STATUS.md)** - Current progress and next steps
+- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Complete file organization
+- **[Testing Guide](docs/TESTING_GUIDE.md)** - Testing best practices
+- **[Implementation Progress](docs/IMPLEMENTATION_PROGRESS.md)** - Detailed progress report
+- **[Developer Guide](.claude/CLAUDE.md)** - Development guidelines for contributors
 
 ## Learning Goals
 

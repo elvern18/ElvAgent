@@ -6,6 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ElvAgent is an autonomous AI newsletter agent that curates and publishes AI news hourly across multiple platforms (Discord, X, Instagram, Telegram, Markdown). Built to demonstrate Claude Code best practices including MCP servers, skills, and subagents.
 
+## 📚 Documentation
+
+All project documentation is organized in the `docs/` folder:
+
+- **[docs/STATUS.md](../docs/STATUS.md)** - Current development status and progress
+- **[docs/IMPLEMENTATION_PROGRESS.md](../docs/IMPLEMENTATION_PROGRESS.md)** - Detailed implementation progress report
+- **[docs/PROJECT_STRUCTURE.md](../docs/PROJECT_STRUCTURE.md)** - Complete project structure and file organization
+- **[docs/TESTING_GUIDE.md](../docs/TESTING_GUIDE.md)** - Testing best practices and workflows
+
+**Quick reference:** Always check `docs/STATUS.md` for current phase and next steps.
+
 ## ⚠️ CRITICAL: Always Use Virtual Environment
 
 **IMPORTANT:** This project uses a Python virtual environment at `.venv/`.
