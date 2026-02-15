@@ -2,6 +2,25 @@
 
 Last Updated: 2026-02-15 (Evening)
 
+## 🔄 How to Resume Development
+
+**Starting a fresh session?** Use this command:
+
+```
+Read docs/STATUS.md and tell me what to build next
+```
+
+**Quick orientation:**
+- **Where we are:** Phase 1 (Foundation) - 55% complete
+- **What's working:** Data layer, MCP server, ArXiv researcher, testing framework
+- **What's next:** See "Next Steps" section below
+- **Tests:** 16/16 passing (`pytest -v`)
+
+**Before coding:**
+1. Activate venv: `source .venv/bin/activate`
+2. Check tests still pass: `pytest`
+3. Review "Active Work" section below
+
 ## Current Phase
 
 Phase 1: Foundation (Week 1) - Day 1 Complete!
