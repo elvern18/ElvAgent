@@ -16,6 +16,7 @@ os.environ["ANTHROPIC_API_KEY"] = "test-key-not-real"  # Mock API key for tests
 from src.config.settings import Settings
 from src.core.state_manager import StateManager
 from src.research.arxiv_researcher import ArXivResearcher
+from src.models.newsletter import Newsletter, NewsletterItem
 
 
 @pytest.fixture
@@ -123,7 +124,7 @@ def sample_content_items():
 
 @pytest.fixture
 def mock_newsletter_data():
-    """Sample newsletter data for testing publishers."""
+    """Sample newsletter data dictionary for testing (backward compatibility)."""
     return {
         "date": "2026-02-15-10",
         "items": [
@@ -131,18 +132,143 @@ def mock_newsletter_data():
                 "title": "Novel LLM Architecture",
                 "url": "https://arxiv.org/abs/2024.12345",
                 "summary": "Breakthrough in reasoning...",
-                "category": "research"
+                "category": "research",
+                "source": "arxiv",
+                "relevance_score": 9,
+                "published_date": None,
+                "metadata": {}
             },
             {
                 "title": "AI Startup Raises $100M",
                 "url": "https://techcrunch.com/funding/xyz",
                 "summary": "Major funding round...",
-                "category": "funding"
+                "category": "funding",
+                "source": "techcrunch",
+                "relevance_score": 8,
+                "published_date": None,
+                "metadata": {}
             }
         ],
         "summary": "Today's AI highlights include a novel LLM architecture and major funding.",
         "item_count": 2
     }
+
+
+@pytest.fixture
+def sample_newsletter_items():
+    """Sample NewsletterItem objects for testing."""
+    return [
+        NewsletterItem(
+            title="Novel LLM Architecture",
+            url="https://arxiv.org/abs/2024.12345",
+            summary="Researchers propose a new transformer architecture that improves efficiency.",
+            category="research",
+            source="arxiv",
+            relevance_score=9
+        ),
+        NewsletterItem(
+            title="OpenAI Releases GPT-5",
+            url="https://openai.com/gpt5",
+            summary="Major update with multimodal capabilities and reasoning.",
+            category="product",
+            source="news",
+            relevance_score=10
+        ),
+        NewsletterItem(
+            title="Anthropic Raises $500M",
+            url="https://techcrunch.com/funding",
+            summary="Series C funding led by major investors.",
+            category="funding",
+            source="techcrunch",
+            relevance_score=8
+        )
+    ]
+
+
+@pytest.fixture
+def sample_newsletter(sample_newsletter_items):
+    """Sample Newsletter object for testing publishers."""
+    return Newsletter(
+        date="2026-02-15-10",
+        items=sample_newsletter_items,
+        summary="Today's top AI updates including breakthrough research and major funding.",
+        item_count=3
+    )
+
+
+@pytest.fixture
+def sample_enhanced_items(sample_newsletter_items):
+    """Enhanced newsletter items with AI-generated content."""
+    from src.models.enhanced_newsletter import EnhancedNewsletterItem
+
+    return [
+        EnhancedNewsletterItem(
+            original_item=sample_newsletter_items[0],
+            viral_headline="🔬 AI Breakthrough: New Transformer Cuts Training Time by 90%",
+            takeaway="💡 Why it matters: Makes state-of-the-art models accessible to small research teams",
+            engagement_metrics={"read_time": "☕ 5-min read", "authors": "John Doe et al."},
+            enhancement_method="ai",
+            enhancement_cost=0.0025
+        ),
+        EnhancedNewsletterItem(
+            original_item=sample_newsletter_items[1],
+            viral_headline="🚀 OpenAI's GPT-5: First AI That Truly Reasons Like Humans",
+            takeaway="💡 Why it matters: Represents major leap in AI capabilities and practical applications",
+            engagement_metrics={"read_time": "☕ 3-min read"},
+            enhancement_method="ai",
+            enhancement_cost=0.0028
+        ),
+        EnhancedNewsletterItem(
+            original_item=sample_newsletter_items[2],
+            viral_headline="💰 Anthropic Raises $500M to Challenge OpenAI Dominance",
+            takeaway="💡 Why it matters: Accelerates competition in foundation models market",
+            engagement_metrics={"read_time": "☕ 2-min read", "author": "TechCrunch"},
+            enhancement_method="ai",
+            enhancement_cost=0.0022
+        )
+    ]
+
+
+@pytest.fixture
+def sample_category_messages(sample_enhanced_items):
+    """Sample CategoryMessage objects."""
+    from src.models.enhanced_newsletter import CategoryMessage
+
+    # Group by category
+    research_items = [item for item in sample_enhanced_items if item.category == "research"]
+    product_items = [item for item in sample_enhanced_items if item.category == "product"]
+    funding_items = [item for item in sample_enhanced_items if item.category == "funding"]
+
+    messages = []
+
+    if research_items:
+        messages.append(CategoryMessage(
+            category="research",
+            emoji="🔬",
+            title="🔬 RESEARCH HIGHLIGHTS - 2026-02-15",
+            items=research_items,
+            formatted_text="**🔬 RESEARCH HIGHLIGHTS**\n\n1. **🔬 AI Breakthrough: New Transformer Cuts Training Time by 90%**\n   💡 Why it matters: Makes state-of-the-art models accessible to small research teams\n   ☕ 5-min read · John Doe et al.\n   🔗 [Read more](https://arxiv.org/abs/2024.12345)\n\n━━━━━━━━━━━━━━━━"
+        ))
+
+    if product_items:
+        messages.append(CategoryMessage(
+            category="product",
+            emoji="🚀",
+            title="🚀 NEW LAUNCHES - 2026-02-15",
+            items=product_items,
+            formatted_text="**🚀 NEW LAUNCHES**\n\n1. **🚀 OpenAI's GPT-5: First AI That Truly Reasons Like Humans**\n   💡 Why it matters: Represents major leap in AI capabilities and practical applications\n   ☕ 3-min read\n   🔗 [Read more](https://openai.com/gpt5)\n\n━━━━━━━━━━━━━━━━"
+        ))
+
+    if funding_items:
+        messages.append(CategoryMessage(
+            category="funding",
+            emoji="💰",
+            title="💰 FUNDING ROUNDUP - 2026-02-15",
+            items=funding_items,
+            formatted_text="**💰 FUNDING ROUNDUP**\n\n1. **💰 Anthropic Raises $500M to Challenge OpenAI Dominance**\n   💡 Why it matters: Accelerates competition in foundation models market\n   ☕ 2-min read · TechCrunch\n   🔗 [Read more](https://techcrunch.com/funding)\n\n━━━━━━━━━━━━━━━━"
+        ))
+
+    return messages
 
 
 # Event loop fixture for async tests
