@@ -7,19 +7,22 @@ from typing import Optional
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Compute project root once (used for .env path)
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_PROJECT_ROOT / ".env"),  # Absolute path to .env
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore"
     )
 
     # Project paths
-    project_root: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent)
+    project_root: Path = Field(default=_PROJECT_ROOT)
 
     # Claude API
     anthropic_api_key: Optional[str] = Field(
