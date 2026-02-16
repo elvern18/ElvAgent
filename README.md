@@ -24,6 +24,37 @@ ElvAgent automatically:
 
 ## Quick Start
 
+### For Development
+
+**Quick Resume (Recommended):**
+```
+/session-start
+```
+This auto-loads all context and shows next steps.
+
+**Manual Resume:**
+1. **See current status:**
+   ```bash
+   cat docs/STATUS.md
+   ```
+
+2. **Resume from last session:**
+   ```bash
+   cat docs/logs/2026-02-17-session-1.md
+   ```
+
+3. **Activate virtual environment:**
+   ```bash
+   source .venv/bin/activate
+   ```
+
+4. **Test run:**
+   ```bash
+   python src/main.py --mode=test --verbose
+   ```
+
+### For Fresh Setup
+
 1. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
@@ -40,12 +71,7 @@ ElvAgent automatically:
    python -c "from src.core.state_manager import StateManager; StateManager().init_db()"
    ```
 
-4. **Test run:**
-   ```bash
-   python src/main.py --mode=test --verbose
-   ```
-
-5. **Install as service (Mac):**
+4. **Install as service (Mac):**
    ```bash
    ./scripts/setup_launchd.sh
    ```

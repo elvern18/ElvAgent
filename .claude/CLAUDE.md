@@ -10,12 +10,12 @@ ElvAgent is an autonomous AI newsletter agent that curates and publishes AI news
 
 All project documentation is organized in the `docs/` folder:
 
-- **[docs/STATUS.md](../docs/STATUS.md)** - Current development status and progress
-- **[docs/IMPLEMENTATION_PROGRESS.md](../docs/IMPLEMENTATION_PROGRESS.md)** - Detailed implementation progress report
-- **[docs/PROJECT_STRUCTURE.md](../docs/PROJECT_STRUCTURE.md)** - Complete project structure and file organization
-- **[docs/TESTING_GUIDE.md](../docs/TESTING_GUIDE.md)** - Testing best practices and workflows
+- **[docs/STATUS.md](../docs/STATUS.md)** - Current development status (<100 lines, high-level)
+- **[docs/logs/](../docs/logs/)** - Session handover logs for continuity
+- **[docs/PROJECT_STRUCTURE.md](../docs/PROJECT_STRUCTURE.md)** - Complete project structure
+- **[docs/TESTING_GUIDE.md](../docs/TESTING_GUIDE.md)** - Testing best practices
 
-**Quick reference:** Always check `docs/STATUS.md` for current phase and next steps.
+**Quick reference:** Start each session with `docs/STATUS.md` + latest session log from `docs/logs/`.
 
 ## ⚠️ CRITICAL: Always Use Virtual Environment
 
@@ -87,6 +87,117 @@ tail -f logs/stdout.log
 # Manual trigger
 launchctl kickstart -k gui/$(id -u)/com.elvagent.newsletter
 ```
+
+## Agent Selection Rubric
+
+Claude Code autonomously chooses the appropriate execution mode. Users can override by explicitly requesting a different approach.
+
+### Single Agent (Default)
+
+**Use when:**
+- <50 lines of code affected
+- Single file modification
+- Clear implementation path
+- No architectural decisions
+- Simple refactoring or bug fixes
+
+**Examples:** Fix bug, add utility function, update config, write tests
+
+### Subagents
+
+**Use when:**
+- Research needed (APIs, docs, libraries)
+- Parallel independent work
+- Context isolation desired
+- Data gathering and analysis
+
+**Subagent types:**
+- **Haiku:** Fast, simple tasks (fetching, basic parsing)
+- **Sonnet:** Complex analysis (design, architecture)
+
+**Examples:** Research RSS libraries, explore APIs, fetch from 4 sources in parallel
+
+### Plan Mode
+
+**Use when:**
+- Multi-component changes (>3 files)
+- Architectural decisions required
+- Multiple valid approaches exist
+- New feature spanning layers
+- Unclear implementation path
+
+**Process:** Explore → Design → Get approval → Implement
+
+**Examples:** New platform integration, pipeline redesign, multi-agent orchestration
+
+### Autonomous Execution
+
+Claude will:
+1. Assess task complexity using criteria above
+2. Announce approach (e.g., "Entering plan mode for this multi-component change")
+3. Proceed with chosen mode
+4. Accept user override if explicitly requested
+
+**Override examples:**
+- "Use plan mode for this"
+- "Just implement directly"
+- "Research with a subagent first"
+
+## Session Documentation
+
+ElvAgent uses automated session documentation for perfect continuity between sessions.
+
+### Available Skills
+
+**Session Lifecycle:**
+- **`/session-start`** - Load context at beginning (auto-finds latest log, shows summary, suggests next action)
+- **`/session-end`** - Document session at end (creates log + compresses STATUS.md + shows next steps)
+
+**Individual Operations:**
+- **`/log-session`** - Create session handover log only
+- **`/update-status`** - Compress STATUS.md only
+
+### When Claude Suggests Documentation
+
+Claude will proactively suggest `/session-end` when:
+- Context usage >75%
+- Session duration >2 hours (estimated)
+- Major milestone completed
+- User indicates they're stopping
+
+**You can always:**
+- Accept: "yes" or invoke `/session-end`
+- Decline: "no" or "not yet"
+- Manually invoke later: `/session-end` at any time
+
+### Conventional Commits
+
+All documentation commits use format:
+```bash
+git commit -m "docs: Session YYYY-MM-DD-N - {brief summary}"
+```
+
+Example:
+```bash
+git commit -m "docs: Session 2026-02-17-1 - ContentEnhancer complete"
+```
+
+### Session Continuity
+
+**Complete Workflow:**
+
+```
+Session Start:  /session-start  (auto-loads context, shows summary)
+      ↓
+  [Work on tasks]
+      ↓
+Session End:    /session-end    (creates log, updates STATUS.md)
+```
+
+**Manual approach (if preferred):**
+1. Read `docs/STATUS.md` (high-level current state)
+2. Read latest session log from `docs/logs/` (detailed context)
+3. Continue from "Next Steps" section
 
 ## Architecture Principles
 
@@ -162,11 +273,11 @@ launchctl kickstart -k gui/$(id -u)/com.elvagent.newsletter
 
 ### Common Pitfalls
 
-1. **Don't fill context:** Use subagents for research, not direct scraping in main context
-2. **Check duplicates early:** Query database before processing content
+1. **Don't fill context:** Use subagents for research, not direct scraping
+2. **Check duplicates early:** Query database before processing
 3. **Normalize URLs:** Remove tracking parameters before fingerprinting
-4. **Respect rate limits:** Each platform has different limits (see `src/utils/rate_limiter.py`)
-5. **Use full paths in launchd:** Relative paths won't work in background execution
+4. **Respect rate limits:** See `src/utils/rate_limiter.py`
+5. **Use full paths in launchd:** Relative paths won't work in background
 
 ### Adding New Features
 
