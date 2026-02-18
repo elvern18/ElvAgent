@@ -22,7 +22,9 @@ from src.research.arxiv_researcher import ArXivResearcher
 from src.research.huggingface_researcher import HuggingFaceResearcher
 from src.research.reddit_researcher import RedditResearcher
 from src.research.techcrunch_researcher import TechCrunchResearcher
-from src.utils.logger import configure_logging
+from src.utils.logger import configure_logging, get_logger
+
+logger = get_logger("main")
 
 
 async def run_test_cycle():
