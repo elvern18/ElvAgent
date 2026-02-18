@@ -1,0 +1,22 @@
+[Unit]
+Description=ElvAgent Personal Assistant
+Documentation=https://github.com/elvern18/ElvAgent
+After=network.target
+
+[Service]
+Type=simple
+User=elvern
+WorkingDirectory=/home/elvern/ElvAgent
+ExecStart=/home/elvern/ElvAgent/.venv/bin/python src/main.py --mode=pa
+Restart=on-failure
+RestartSec=30
+# Stop restart loop if it fails 5 times in 5 minutes
+StartLimitIntervalSec=300
+StartLimitBurst=5
+# Surface Python output immediately (no stdout buffering)
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

@@ -126,6 +126,39 @@ class StateManager:
                 CREATE INDEX IF NOT EXISTS idx_github_events_pr ON github_events(pr_number)
             """)
 
+            # PA task queue table
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS task_queue (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_type   TEXT NOT NULL,
+                    payload     TEXT NOT NULL,
+                    status      TEXT NOT NULL DEFAULT 'pending',
+                    priority    INTEGER NOT NULL DEFAULT 5,
+                    chat_id     INTEGER,
+                    result      TEXT,
+                    error       TEXT,
+                    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            await db.execute("""
+                CREATE INDEX IF NOT EXISTS idx_task_queue_status
+                ON task_queue(status, priority, created_at)
+            """)
+
+            # PA agent facts table (persistent key/value memory)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS agent_facts (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    key        TEXT UNIQUE NOT NULL,
+                    value      TEXT NOT NULL,
+                    source     TEXT NOT NULL DEFAULT 'user',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             await db.commit()
 
         logger.info("database_initialized", db_path=str(self.db_path))
@@ -512,3 +545,78 @@ class StateManager:
             )
             rows = await cursor.fetchall()
         return [dict(row) for row in rows]
+
+    async def minutes_since_last_newsletter(self) -> float:
+        """
+        Return minutes elapsed since the most recent newsletter was published.
+
+        Used by NewsletterAgent to decide whether a new run is due.
+
+        Returns:
+            Minutes since last newsletter, or a large value (999_999) if none
+            has ever been published (triggers first run immediately).
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                """
+                SELECT (julianday('now') - julianday(MAX(created_at))) * 24 * 60
+                FROM newsletters
+                """
+            )
+            row = await cursor.fetchone()
+
+        if row is None or row[0] is None:
+            return 999_999.0
+
+        return float(row[0])
+
+    # ------------------------------------------------------------------
+    # PA memory helpers
+    # ------------------------------------------------------------------
+
+    async def set_fact(self, key: str, value: str, source: str = "user") -> None:
+        """
+        Upsert a persistent agent fact (key/value pair).
+
+        Args:
+            key: Unique fact key (e.g. 'default_repo')
+            value: Fact value
+            source: Who set it — 'user', 'agent', or 'system'
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """
+                INSERT INTO agent_facts (key, value, source, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    source = excluded.source,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (key, value, source),
+            )
+            await db.commit()
+        logger.debug("fact_set", key=key, source=source)
+
+    async def get_fact(self, key: str) -> str | None:
+        """
+        Retrieve a persistent fact by key.
+
+        Args:
+            key: Fact key
+
+        Returns:
+            Fact value, or None if not found
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("SELECT value FROM agent_facts WHERE key = ?", (key,))
+            row = await cursor.fetchone()
+        return row[0] if row else None
+
+    async def get_all_facts(self) -> dict[str, str]:
+        """Return all agent facts as a key → value dict."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT key, value FROM agent_facts ORDER BY key")
+            rows = await cursor.fetchall()
+        return {row["key"]: row["value"] for row in rows}
