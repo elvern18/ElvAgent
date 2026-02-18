@@ -484,3 +484,31 @@ class StateManager:
             )
             result = await cursor.fetchone()
         return result[0] if result else 0
+
+    async def get_fix_history(self, pr_number: int) -> list[dict]:
+        """
+        Return the chronological history of fix pushes for a PR.
+
+        Used to give Claude context about what was already tried so it
+        doesn't repeat the same fix.
+
+        Args:
+            pr_number: Pull request number
+
+        Returns:
+            List of dicts with keys: head_sha, action_taken, processed_at
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """
+                SELECT head_sha, action_taken, processed_at
+                FROM github_events
+                WHERE pr_number = ?
+                AND action_taken IN ('ruff_fix_pushed', 'ai_fix_pushed')
+                ORDER BY processed_at ASC
+                """,
+                (pr_number,),
+            )
+            rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
