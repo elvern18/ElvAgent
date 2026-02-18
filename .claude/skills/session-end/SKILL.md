@@ -15,8 +15,9 @@ Provides a single command to:
 2. Compress and update STATUS.md
 3. Show git status
 4. Generate next session start command
+5. **Auto-commit documentation** (no prompt needed)
 
-Ensures documentation is always up-to-date before ending a session.
+Ensures documentation is always committed and up-to-date before ending a session.
 
 ## When to Use
 
@@ -111,35 +112,29 @@ M  docs/STATUS.md
 A  docs/logs/YYYY-MM-DD-session-N.md
 ?? {other uncommitted files}
 
-To commit documentation:
-git add docs/
-git commit -m "docs: Session YYYY-MM-DD-N - {brief summary}"
-
 Next Session Start:
 Read docs/STATUS.md and docs/logs/YYYY-MM-DD-session-N.md, then {specific action}
 
 Ready to continue or stop work!
 ```
 
-### Stage 5: Optionally Create Commit
+### Stage 5: Auto-Commit Documentation
 
-Ask user if they want to commit documentation now:
+Automatically commit the documentation without asking. Always run:
 
-```
-Would you like me to commit the documentation updates?
-```
-
-If yes:
 ```bash
 git add docs/STATUS.md docs/logs/YYYY-MM-DD-session-N.md
-git commit -m "docs: Session YYYY-MM-DD-N - {brief summary}"
+git commit -m "docs: Session YYYY-MM-DD-N - {brief summary}
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
-If no:
-```
-Documentation changes staged but not committed.
-You can commit later with the command above.
-```
+Extract the commit hash from the output and show it in the summary.
+
+**If commit fails** (e.g. pre-commit hook error or nothing to commit):
+- If nothing to commit: note "Documentation already committed" and skip
+- If hook fails: fix the issue (trailing whitespace, etc.) and retry once
+- If still fails: show the manual command and continue
 
 ## Output Format
 
@@ -170,15 +165,8 @@ Always return structured summary:
 
 ───────────────────────────────────────────────────────────
 
-To commit documentation:
-$ git add docs/
-$ git commit -m "docs: Session 2026-02-17-1 - ContentEnhancer complete"
-
-To commit all changes:
-$ git add .
-$ git commit -m "feat: Complete ContentEnhancer orchestrator
-
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+📦 Documentation Committed
+   Commit: abc1234 docs: Session 2026-02-17-1 - ContentEnhancer complete
 
 ───────────────────────────────────────────────────────────
 
