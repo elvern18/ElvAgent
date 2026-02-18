@@ -66,6 +66,16 @@ class Settings(BaseSettings):
     # Cost limits
     max_daily_cost: float = Field(default=5.0, description="Maximum daily API cost in USD")
 
+    # Content Enhancement
+    enable_content_enhancement: bool = Field(
+        default=True,
+        description="Enable AI content enhancement (adds ~$0.035 per newsletter)"
+    )
+    max_items_per_category: int = Field(
+        default=5,
+        description="Maximum items per category in enhanced mode"
+    )
+
     # Logging
     log_level: str = Field(default="INFO", description="Logging level")
 
