@@ -62,7 +62,7 @@ class MarkdownFormatter(BaseFormatter):
 
     def _group_by_category(self, items: list[NewsletterItem]) -> dict[str, list[NewsletterItem]]:
         """Group items by category."""
-        by_category = {}
+        by_category: dict[str, list[NewsletterItem]] = {}
         for item in items:
             category = item.category
             if category not in by_category:

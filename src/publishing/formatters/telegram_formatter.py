@@ -158,7 +158,7 @@ class TelegramFormatter(BaseFormatter):
         paragraphs = message.split("\n\n")
 
         messages = []
-        current = []
+        current: list[str] = []
         current_length = 0
 
         for para in paragraphs:

@@ -33,7 +33,7 @@ class NewsletterImageGenerator:
         "regulation": (153, 170, 181),  # Gray
     }
 
-    def __init__(self, output_dir: Path = None):
+    def __init__(self, output_dir: Path | None = None):
         """
         Initialize image generator.
 
