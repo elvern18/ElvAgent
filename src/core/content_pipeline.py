@@ -267,6 +267,7 @@ Generate 2-3 sentences highlighting the most significant developments. Be concis
         logger.info("calling_claude_api", model=settings.anthropic_model)
 
         # Call Claude API
+        assert self.client is not None
         message = await self.client.messages.create(
             model=settings.anthropic_model,
             max_tokens=300,

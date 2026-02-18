@@ -370,7 +370,7 @@ class StateManager:
             )
             rows = await cursor.fetchall()
 
-        metrics = {}
+        metrics: dict[str, Any] = {}
         total_cost = 0.0
 
         for row in rows:

@@ -2,6 +2,8 @@
 Markdown publisher for writing newsletters to markdown files.
 """
 
+from typing import Any
+
 from src.config.settings import settings
 from src.models.newsletter import Newsletter
 from src.publishing.base import BasePublisher, PublishResult
@@ -32,7 +34,7 @@ class MarkdownPublisher(BasePublisher):
         """
         return self.formatter.format(newsletter)
 
-    async def publish(self, content: str, newsletter: Newsletter) -> PublishResult:
+    async def publish(self, content: Any, newsletter: Newsletter | None = None) -> PublishResult:  # type: ignore[override]
         """
         Write markdown file to disk.
 
@@ -44,6 +46,7 @@ class MarkdownPublisher(BasePublisher):
             PublishResult with success/failure info
         """
         try:
+            assert newsletter is not None, "newsletter required for markdown publisher"
             # Generate filename: newsletters/2026-02-15-10.md
             filename = f"{newsletter.date}.md"
             filepath = self.output_dir / filename
@@ -64,7 +67,7 @@ class MarkdownPublisher(BasePublisher):
             self.logger.error("markdown_publish_failed", error=str(e))
             return PublishResult(platform=self.platform_name, success=False, error=str(e))
 
-    async def publish_newsletter(self, newsletter: Newsletter) -> PublishResult:
+    async def publish_newsletter(self, newsletter: Newsletter | dict[str, Any]) -> PublishResult:
         """
         Main publishing method for markdown.
 
@@ -75,6 +78,9 @@ class MarkdownPublisher(BasePublisher):
             PublishResult
         """
         self.logger.info("starting_publish", platform=self.platform_name)
+
+        if isinstance(newsletter, dict):
+            newsletter = Newsletter.from_dict(newsletter)
 
         try:
             # Format content

@@ -107,7 +107,7 @@ class Orchestrator:
 
             # Phase 3: Enhancement (optional)
             enhancement_metrics = None
-            content_to_publish = newsletter
+            content_to_publish: Newsletter | list[CategoryMessage] = newsletter
 
             if settings.enable_content_enhancement and self.enhancer:
                 category_messages, enhancement_metrics = await self.enhance_phase(newsletter)
@@ -178,7 +178,7 @@ class Orchestrator:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Collect successful results
-        all_items = []
+        all_items: list[ContentItem] = []
         failed_count = 0
 
         for i, result in enumerate(results):
@@ -193,7 +193,7 @@ class Orchestrator:
                     error_type=type(result).__name__,
                 )
                 failed_count += 1
-            else:
+            elif isinstance(result, list):
                 # Research succeeded
                 all_items.extend(result)
                 logger.info("researcher_success", source=researcher.source_name, items=len(result))
@@ -246,6 +246,7 @@ class Orchestrator:
         """
         logger.info("enhance_phase_start", item_count=newsletter.item_count)
 
+        assert self.enhancer is not None
         category_messages, metrics = await self.enhancer.enhance_newsletter(
             items=newsletter.items,
             date=newsletter.date,
@@ -331,7 +332,7 @@ class Orchestrator:
                 logger.error(
                     "publisher_crashed", platform=publisher.platform_name, error=str(result)
                 )
-            else:
+            elif isinstance(result, PublishResult):
                 # Got PublishResult
                 publish_results.append(result)
 
@@ -362,11 +363,11 @@ class Orchestrator:
         for msg in category_messages:
             all_items.extend([item.original_item for item in msg.items])
 
-        date = (
-            category_messages[0].items[0].original_item.published_date.strftime("%Y-%m-%d-%H")
-            if category_messages and category_messages[0].items
-            else datetime.now().strftime("%Y-%m-%d-%H")
-        )
+        date = datetime.now().strftime("%Y-%m-%d-%H")
+        if category_messages and category_messages[0].items:
+            pub_date = category_messages[0].items[0].original_item.published_date
+            if pub_date is not None:
+                date = pub_date.strftime("%Y-%m-%d-%H")
 
         return Newsletter(
             date=date,
