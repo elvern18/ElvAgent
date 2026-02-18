@@ -15,13 +15,14 @@ sys.path.insert(0, str(project_root))
 import asyncio
 import time
 from datetime import datetime
+
+from src.core.content_pipeline import ContentPipeline
+from src.core.state_manager import StateManager
+from src.publishing.content_enhancer import ContentEnhancer
 from src.research.arxiv_researcher import ArXivResearcher
 from src.research.huggingface_researcher import HuggingFaceResearcher
 from src.research.reddit_researcher import RedditResearcher
 from src.research.techcrunch_researcher import TechCrunchResearcher
-from src.core.content_pipeline import ContentPipeline
-from src.core.state_manager import StateManager
-from src.publishing.content_enhancer import ContentEnhancer
 from src.utils.logger import get_logger
 
 logger = get_logger("test.enhancer_real")

@@ -1,12 +1,14 @@
 """
 Pytest configuration and shared fixtures.
 """
+
 import asyncio
 import os
-import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 # Set test environment variables before importing settings
 os.environ["DATABASE_PATH"] = ":memory:"  # Use in-memory SQLite for tests
@@ -15,7 +17,6 @@ os.environ["ANTHROPIC_API_KEY"] = "test-key-not-real"  # Mock API key for tests
 
 from src.config.settings import Settings
 from src.core.state_manager import StateManager
-from src.research.arxiv_researcher import ArXivResearcher
 from src.models.newsletter import Newsletter, NewsletterItem
 
 
@@ -32,7 +33,7 @@ def test_settings(temp_dir):
     return Settings(
         database_path=temp_dir / "test.db",
         anthropic_api_key="test-key-not-real",
-        log_level="WARNING"
+        log_level="WARNING",
     )
 
 
@@ -85,8 +86,9 @@ def sample_arxiv_feed():
 @pytest.fixture
 def sample_content_items():
     """Sample ContentItem objects for testing."""
-    from src.research.base import ContentItem
     from datetime import datetime
+
+    from src.research.base import ContentItem
 
     return [
         ContentItem(
@@ -97,7 +99,7 @@ def sample_content_items():
             relevance_score=9,
             summary="A breakthrough in LLM architecture...",
             metadata={"authors": ["John Doe", "Jane Smith"]},
-            published_date=datetime(2026, 2, 15, 10, 0)
+            published_date=datetime(2026, 2, 15, 10, 0),
         ),
         ContentItem(
             title="New Multimodal Model",
@@ -107,7 +109,7 @@ def sample_content_items():
             relevance_score=8,
             summary="Combining vision and language...",
             metadata={"downloads": 10000},
-            published_date=datetime(2026, 2, 15, 9, 0)
+            published_date=datetime(2026, 2, 15, 9, 0),
         ),
         ContentItem(
             title="AI Startup Raises $100M",
@@ -117,7 +119,7 @@ def sample_content_items():
             relevance_score=7,
             summary="Seed funding for AI infrastructure...",
             metadata={"amount": "100M", "investors": ["a16z"]},
-            published_date=datetime(2026, 2, 15, 8, 0)
+            published_date=datetime(2026, 2, 15, 8, 0),
         ),
     ]
 
@@ -136,7 +138,7 @@ def mock_newsletter_data():
                 "source": "arxiv",
                 "relevance_score": 9,
                 "published_date": None,
-                "metadata": {}
+                "metadata": {},
             },
             {
                 "title": "AI Startup Raises $100M",
@@ -146,11 +148,11 @@ def mock_newsletter_data():
                 "source": "techcrunch",
                 "relevance_score": 8,
                 "published_date": None,
-                "metadata": {}
-            }
+                "metadata": {},
+            },
         ],
         "summary": "Today's AI highlights include a novel LLM architecture and major funding.",
-        "item_count": 2
+        "item_count": 2,
     }
 
 
@@ -164,7 +166,7 @@ def sample_newsletter_items():
             summary="Researchers propose a new transformer architecture that improves efficiency.",
             category="research",
             source="arxiv",
-            relevance_score=9
+            relevance_score=9,
         ),
         NewsletterItem(
             title="OpenAI Releases GPT-5",
@@ -172,7 +174,7 @@ def sample_newsletter_items():
             summary="Major update with multimodal capabilities and reasoning.",
             category="product",
             source="news",
-            relevance_score=10
+            relevance_score=10,
         ),
         NewsletterItem(
             title="Anthropic Raises $500M",
@@ -180,8 +182,8 @@ def sample_newsletter_items():
             summary="Series C funding led by major investors.",
             category="funding",
             source="techcrunch",
-            relevance_score=8
-        )
+            relevance_score=8,
+        ),
     ]
 
 
@@ -192,7 +194,7 @@ def sample_newsletter(sample_newsletter_items):
         date="2026-02-15-10",
         items=sample_newsletter_items,
         summary="Today's top AI updates including breakthrough research and major funding.",
-        item_count=3
+        item_count=3,
     )
 
 
@@ -208,7 +210,7 @@ def sample_enhanced_items(sample_newsletter_items):
             takeaway="💡 Why it matters: Makes state-of-the-art models accessible to small research teams",
             engagement_metrics={"read_time": "☕ 5-min read", "authors": "John Doe et al."},
             enhancement_method="ai",
-            enhancement_cost=0.0025
+            enhancement_cost=0.0025,
         ),
         EnhancedNewsletterItem(
             original_item=sample_newsletter_items[1],
@@ -216,7 +218,7 @@ def sample_enhanced_items(sample_newsletter_items):
             takeaway="💡 Why it matters: Represents major leap in AI capabilities and practical applications",
             engagement_metrics={"read_time": "☕ 3-min read"},
             enhancement_method="ai",
-            enhancement_cost=0.0028
+            enhancement_cost=0.0028,
         ),
         EnhancedNewsletterItem(
             original_item=sample_newsletter_items[2],
@@ -224,8 +226,8 @@ def sample_enhanced_items(sample_newsletter_items):
             takeaway="💡 Why it matters: Accelerates competition in foundation models market",
             engagement_metrics={"read_time": "☕ 2-min read", "author": "TechCrunch"},
             enhancement_method="ai",
-            enhancement_cost=0.0022
-        )
+            enhancement_cost=0.0022,
+        ),
     ]
 
 
@@ -242,31 +244,37 @@ def sample_category_messages(sample_enhanced_items):
     messages = []
 
     if research_items:
-        messages.append(CategoryMessage(
-            category="research",
-            emoji="🔬",
-            title="🔬 RESEARCH HIGHLIGHTS - 2026-02-15",
-            items=research_items,
-            formatted_text="**🔬 RESEARCH HIGHLIGHTS**\n\n1. **🔬 AI Breakthrough: New Transformer Cuts Training Time by 90%**\n   💡 Why it matters: Makes state-of-the-art models accessible to small research teams\n   ☕ 5-min read · John Doe et al.\n   🔗 [Read more](https://arxiv.org/abs/2024.12345)\n\n━━━━━━━━━━━━━━━━"
-        ))
+        messages.append(
+            CategoryMessage(
+                category="research",
+                emoji="🔬",
+                title="🔬 RESEARCH HIGHLIGHTS - 2026-02-15",
+                items=research_items,
+                formatted_text="**🔬 RESEARCH HIGHLIGHTS**\n\n1. **🔬 AI Breakthrough: New Transformer Cuts Training Time by 90%**\n   💡 Why it matters: Makes state-of-the-art models accessible to small research teams\n   ☕ 5-min read · John Doe et al.\n   🔗 [Read more](https://arxiv.org/abs/2024.12345)\n\n━━━━━━━━━━━━━━━━",
+            )
+        )
 
     if product_items:
-        messages.append(CategoryMessage(
-            category="product",
-            emoji="🚀",
-            title="🚀 NEW LAUNCHES - 2026-02-15",
-            items=product_items,
-            formatted_text="**🚀 NEW LAUNCHES**\n\n1. **🚀 OpenAI's GPT-5: First AI That Truly Reasons Like Humans**\n   💡 Why it matters: Represents major leap in AI capabilities and practical applications\n   ☕ 3-min read\n   🔗 [Read more](https://openai.com/gpt5)\n\n━━━━━━━━━━━━━━━━"
-        ))
+        messages.append(
+            CategoryMessage(
+                category="product",
+                emoji="🚀",
+                title="🚀 NEW LAUNCHES - 2026-02-15",
+                items=product_items,
+                formatted_text="**🚀 NEW LAUNCHES**\n\n1. **🚀 OpenAI's GPT-5: First AI That Truly Reasons Like Humans**\n   💡 Why it matters: Represents major leap in AI capabilities and practical applications\n   ☕ 3-min read\n   🔗 [Read more](https://openai.com/gpt5)\n\n━━━━━━━━━━━━━━━━",
+            )
+        )
 
     if funding_items:
-        messages.append(CategoryMessage(
-            category="funding",
-            emoji="💰",
-            title="💰 FUNDING ROUNDUP - 2026-02-15",
-            items=funding_items,
-            formatted_text="**💰 FUNDING ROUNDUP**\n\n1. **💰 Anthropic Raises $500M to Challenge OpenAI Dominance**\n   💡 Why it matters: Accelerates competition in foundation models market\n   ☕ 2-min read · TechCrunch\n   🔗 [Read more](https://techcrunch.com/funding)\n\n━━━━━━━━━━━━━━━━"
-        ))
+        messages.append(
+            CategoryMessage(
+                category="funding",
+                emoji="💰",
+                title="💰 FUNDING ROUNDUP - 2026-02-15",
+                items=funding_items,
+                formatted_text="**💰 FUNDING ROUNDUP**\n\n1. **💰 Anthropic Raises $500M to Challenge OpenAI Dominance**\n   💡 Why it matters: Accelerates competition in foundation models market\n   ☕ 2-min read · TechCrunch\n   🔗 [Read more](https://techcrunch.com/funding)\n\n━━━━━━━━━━━━━━━━",
+            )
+        )
 
     return messages
 

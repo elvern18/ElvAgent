@@ -1,28 +1,31 @@
 """
 Retry utilities with exponential backoff for handling transient failures.
 """
+
 import asyncio
-from typing import TypeVar, Callable, Any, Optional
+from collections.abc import Callable
+from typing import Any, TypeVar
+
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
-    RetryError
 )
-from src.config.constants import MAX_RETRIES, RETRY_MIN_WAIT, RETRY_MAX_WAIT
+
+from src.config.constants import MAX_RETRIES, RETRY_MAX_WAIT, RETRY_MIN_WAIT
 from src.utils.logger import get_logger
 
 logger = get_logger("retry")
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def create_retry_decorator(
     max_attempts: int = MAX_RETRIES,
     min_wait: int = RETRY_MIN_WAIT,
     max_wait: int = RETRY_MAX_WAIT,
-    retry_exceptions: tuple = (Exception,)
+    retry_exceptions: tuple = (Exception,),
 ):
     """
     Create a retry decorator with exponential backoff.
@@ -40,7 +43,7 @@ def create_retry_decorator(
         stop=stop_after_attempt(max_attempts),
         wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
         retry=retry_if_exception_type(retry_exceptions),
-        reraise=True
+        reraise=True,
     )
 
 
@@ -50,7 +53,7 @@ async def retry_async(
     max_attempts: int = MAX_RETRIES,
     min_wait: float = RETRY_MIN_WAIT,
     max_wait: float = RETRY_MAX_WAIT,
-    **kwargs
+    **kwargs,
 ) -> Any:
     """
     Retry an async function with exponential backoff.
@@ -75,10 +78,7 @@ async def retry_async(
     for attempt in range(1, max_attempts + 1):
         try:
             logger.debug(
-                "retry_attempt",
-                function=func.__name__,
-                attempt=attempt,
-                max_attempts=max_attempts
+                "retry_attempt", function=func.__name__, attempt=attempt, max_attempts=max_attempts
             )
             return await func(*args, **kwargs)
 
@@ -90,15 +90,11 @@ async def retry_async(
                 attempt=attempt,
                 max_attempts=max_attempts,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
 
             if attempt < max_attempts:
-                logger.info(
-                    "retry_waiting",
-                    function=func.__name__,
-                    wait_seconds=wait_time
-                )
+                logger.info("retry_waiting", function=func.__name__, wait_seconds=wait_time)
                 await asyncio.sleep(wait_time)
                 # Exponential backoff
                 wait_time = min(wait_time * 2, max_wait)
@@ -107,7 +103,7 @@ async def retry_async(
                     "retry_exhausted",
                     function=func.__name__,
                     total_attempts=max_attempts,
-                    final_error=str(e)
+                    final_error=str(e),
                 )
 
     # All retries exhausted
@@ -121,7 +117,7 @@ def retry_sync(
     max_attempts: int = MAX_RETRIES,
     min_wait: float = RETRY_MIN_WAIT,
     max_wait: float = RETRY_MAX_WAIT,
-    **kwargs
+    **kwargs,
 ) -> Any:
     """
     Retry a synchronous function with exponential backoff.
@@ -148,10 +144,7 @@ def retry_sync(
     for attempt in range(1, max_attempts + 1):
         try:
             logger.debug(
-                "retry_attempt",
-                function=func.__name__,
-                attempt=attempt,
-                max_attempts=max_attempts
+                "retry_attempt", function=func.__name__, attempt=attempt, max_attempts=max_attempts
             )
             return func(*args, **kwargs)
 
@@ -163,15 +156,11 @@ def retry_sync(
                 attempt=attempt,
                 max_attempts=max_attempts,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
 
             if attempt < max_attempts:
-                logger.info(
-                    "retry_waiting",
-                    function=func.__name__,
-                    wait_seconds=wait_time
-                )
+                logger.info("retry_waiting", function=func.__name__, wait_seconds=wait_time)
                 time.sleep(wait_time)
                 # Exponential backoff
                 wait_time = min(wait_time * 2, max_wait)
@@ -180,7 +169,7 @@ def retry_sync(
                     "retry_exhausted",
                     function=func.__name__,
                     total_attempts=max_attempts,
-                    final_error=str(e)
+                    final_error=str(e),
                 )
 
     # All retries exhausted

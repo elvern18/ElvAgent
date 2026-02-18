@@ -2,11 +2,13 @@
 AI-powered social media message formatting.
 Creates visually appealing Telegram messages with proper hierarchy.
 """
-from anthropic import AsyncAnthropic
+
 import json
-from typing import List
+
+from anthropic import AsyncAnthropic
+
 from src.config.settings import settings
-from src.models.enhanced_newsletter import EnhancedNewsletterItem, CategoryMessage
+from src.models.enhanced_newsletter import EnhancedNewsletterItem
 from src.utils.logger import get_logger
 
 logger = get_logger("enhancer.formatter")
@@ -75,9 +77,9 @@ Return ONLY the formatted Telegram message. Use Markdown syntax. Keep it scannab
         self,
         category: str,
         title: str,
-        items: List[EnhancedNewsletterItem],
+        items: list[EnhancedNewsletterItem],
         date: str,
-        timeout: int = 30
+        timeout: int = 30,
     ) -> tuple[str, float]:
         """
         Format category message using AI.
@@ -103,23 +105,16 @@ Return ONLY the formatted Telegram message. Use Markdown syntax. Keep it scannab
                 "headline": item.viral_headline,
                 "takeaway": item.takeaway,
                 "url": item.url,
-                "metrics": item.engagement_metrics
+                "metrics": item.engagement_metrics,
             }
             items_data.append(item_dict)
 
         # Format prompt
         prompt = self.USER_PROMPT_TEMPLATE.format(
-            category=category,
-            title=title,
-            date=date,
-            items_json=json.dumps(items_data, indent=2)
+            category=category, title=title, date=date, items_json=json.dumps(items_data, indent=2)
         )
 
-        logger.debug(
-            "formatting_category",
-            category=category,
-            item_count=len(items)
-        )
+        logger.debug("formatting_category", category=category, item_count=len(items))
 
         try:
             # Call Claude API
@@ -127,11 +122,8 @@ Return ONLY the formatted Telegram message. Use Markdown syntax. Keep it scannab
                 model=self.model,
                 max_tokens=2000,
                 system=self.SYSTEM_PROMPT,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }],
-                timeout=timeout
+                messages=[{"role": "user", "content": prompt}],
+                timeout=timeout,
             )
 
             # Extract formatted text
@@ -146,24 +138,17 @@ Return ONLY the formatted Telegram message. Use Markdown syntax. Keep it scannab
                 "category_formatted",
                 category=category,
                 length=len(formatted_text),
-                cost=f"${cost:.6f}"
+                cost=f"${cost:.6f}",
             )
 
             return formatted_text, cost
 
         except Exception as e:
-            logger.error(
-                "formatting_failed",
-                error=str(e),
-                category=category
-            )
+            logger.error("formatting_failed", error=str(e), category=category)
             raise
 
     def format_category_simple(
-        self,
-        category: str,
-        title: str,
-        items: List[EnhancedNewsletterItem]
+        self, category: str, title: str, items: list[EnhancedNewsletterItem]
     ) -> str:
         """
         Format category message without AI (fallback).

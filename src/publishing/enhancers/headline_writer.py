@@ -2,8 +2,9 @@
 AI-powered viral headline generation.
 Transforms technical titles into engaging, clickable headlines.
 """
+
 from anthropic import AsyncAnthropic
-from typing import Optional
+
 from src.config.settings import settings
 from src.models.newsletter import NewsletterItem
 from src.utils.logger import get_logger
@@ -71,11 +72,7 @@ Return ONLY the headline with emoji prefix. No quotes, no explanation, no additi
         self.client = AsyncAnthropic(api_key=settings.anthropic_api_key)
         self.model = "claude-sonnet-4-5-20250929"
 
-    async def generate_headline(
-        self,
-        item: NewsletterItem,
-        timeout: int = 30
-    ) -> tuple[str, float]:
+    async def generate_headline(self, item: NewsletterItem, timeout: int = 30) -> tuple[str, float]:
         """
         Generate viral headline for item.
 
@@ -93,14 +90,10 @@ Return ONLY the headline with emoji prefix. No quotes, no explanation, no additi
         prompt = self.USER_PROMPT_TEMPLATE.format(
             title=item.title,
             category=item.category,
-            summary=item.summary[:300]  # Truncate long summaries
+            summary=item.summary[:300],  # Truncate long summaries
         )
 
-        logger.debug(
-            "generating_headline",
-            title=item.title[:50],
-            category=item.category
-        )
+        logger.debug("generating_headline", title=item.title[:50], category=item.category)
 
         try:
             # Call Claude API
@@ -108,11 +101,8 @@ Return ONLY the headline with emoji prefix. No quotes, no explanation, no additi
                 model=self.model,
                 max_tokens=100,
                 system=self.SYSTEM_PROMPT,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }],
-                timeout=timeout
+                messages=[{"role": "user", "content": prompt}],
+                timeout=timeout,
             )
 
             # Extract headline
@@ -127,15 +117,11 @@ Return ONLY the headline with emoji prefix. No quotes, no explanation, no additi
                 "headline_generated",
                 original=item.title[:50],
                 headline=headline[:50],
-                cost=f"${cost:.4f}"
+                cost=f"${cost:.4f}",
             )
 
             return headline, cost
 
         except Exception as e:
-            logger.error(
-                "headline_generation_failed",
-                error=str(e),
-                title=item.title[:50]
-            )
+            logger.error("headline_generation_failed", error=str(e), title=item.title[:50])
             raise

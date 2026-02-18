@@ -1,12 +1,14 @@
 """
 Unit tests for newsletter formatters.
 """
+
 import pytest
-from src.publishing.formatters.markdown_formatter import MarkdownFormatter
-from src.publishing.formatters.discord_formatter import DiscordFormatter
-from src.publishing.formatters.telegram_formatter import TelegramFormatter
-from src.models.newsletter import Newsletter, NewsletterItem
+
 from src.models.enhanced_newsletter import CategoryMessage, EnhancedNewsletterItem
+from src.models.newsletter import Newsletter, NewsletterItem
+from src.publishing.formatters.discord_formatter import DiscordFormatter
+from src.publishing.formatters.markdown_formatter import MarkdownFormatter
+from src.publishing.formatters.telegram_formatter import TelegramFormatter
 
 
 @pytest.fixture
@@ -19,7 +21,7 @@ def sample_items():
             summary="Researchers propose a new transformer architecture that improves efficiency.",
             category="research",
             source="arxiv",
-            relevance_score=9
+            relevance_score=9,
         ),
         NewsletterItem(
             title="OpenAI Releases GPT-5",
@@ -27,7 +29,7 @@ def sample_items():
             summary="Major update with multimodal capabilities.",
             category="product",
             source="news",
-            relevance_score=10
+            relevance_score=10,
         ),
         NewsletterItem(
             title="Anthropic Raises $500M",
@@ -35,8 +37,8 @@ def sample_items():
             summary="Series C funding led by major investors.",
             category="funding",
             source="techcrunch",
-            relevance_score=8
-        )
+            relevance_score=8,
+        ),
     ]
 
 
@@ -44,10 +46,7 @@ def sample_items():
 def sample_newsletter(sample_items):
     """Sample newsletter for testing."""
     return Newsletter(
-        date="2026-02-15-10",
-        items=sample_items,
-        summary="Today's top AI updates",
-        item_count=3
+        date="2026-02-15-10", items=sample_items, summary="Today's top AI updates", item_count=3
     )
 
 
@@ -78,7 +77,7 @@ class TestMarkdownFormatter:
             date="2026-02-15-10",
             items=sample_items,
             summary="",  # Empty summary
-            item_count=3
+            item_count=3,
         )
 
         formatter = MarkdownFormatter()
@@ -135,11 +134,7 @@ class TestMarkdownFormatter:
 
     def test_format_empty_newsletter(self):
         """Test formatting empty newsletter."""
-        newsletter = Newsletter(
-            date="2026-02-15-10",
-            items=[],
-            item_count=0
-        )
+        newsletter = Newsletter(date="2026-02-15-10", items=[], item_count=0)
 
         formatter = MarkdownFormatter()
         result = formatter.format(newsletter)
@@ -233,16 +228,12 @@ class TestDiscordFormatter:
                 summary=f"Summary {i}",
                 category="research",
                 source="test",
-                relevance_score=5
+                relevance_score=5,
             )
             for i in range(15)  # More than max embeds
         ]
 
-        newsletter = Newsletter(
-            date="2026-02-15-10",
-            items=items,
-            item_count=15
-        )
+        newsletter = Newsletter(date="2026-02-15-10", items=items, item_count=15)
 
         formatter = DiscordFormatter()
         result = formatter.format(newsletter)
@@ -260,14 +251,10 @@ class TestDiscordFormatter:
             summary="Short summary",
             category="research",
             source="test",
-            relevance_score=5
+            relevance_score=5,
         )
 
-        newsletter = Newsletter(
-            date="2026-02-15-10",
-            items=[item],
-            item_count=1
-        )
+        newsletter = Newsletter(date="2026-02-15-10", items=[item], item_count=1)
 
         formatter = DiscordFormatter()
         result = formatter.format(newsletter)
@@ -287,14 +274,10 @@ class TestDiscordFormatter:
             summary=long_summary,
             category="research",
             source="test",
-            relevance_score=5
+            relevance_score=5,
         )
 
-        newsletter = Newsletter(
-            date="2026-02-15-10",
-            items=[item],
-            item_count=1
-        )
+        newsletter = Newsletter(date="2026-02-15-10", items=[item], item_count=1)
 
         formatter = DiscordFormatter()
         result = formatter.format(newsletter)
@@ -319,11 +302,7 @@ class TestDiscordFormatter:
 
     def test_format_empty_newsletter(self):
         """Test formatting empty newsletter."""
-        newsletter = Newsletter(
-            date="2026-02-15-10",
-            items=[],
-            item_count=0
-        )
+        newsletter = Newsletter(date="2026-02-15-10", items=[], item_count=0)
 
         formatter = DiscordFormatter()
         result = formatter.format(newsletter)
@@ -354,7 +333,6 @@ class TestTelegramFormatterEnhanced:
         assert "Powered by ElvAgent" in full_text
 
         # Verify category content included
-        category_msg = sample_category_messages[0]
         # Note: formatted_text is already included, so check for presence
         assert len(full_text) > 100  # Should have substantial content
 
@@ -370,7 +348,7 @@ class TestTelegramFormatterEnhanced:
 
         # Verify all categories included
         full_text = "\n".join(result)
-        for msg in sample_category_messages:
+        for _msg in sample_category_messages:
             # Check that some text from each category is present
             # (formatted_text is already included by SocialFormatter)
             assert len(full_text) > 100
@@ -394,7 +372,7 @@ class TestTelegramFormatterEnhanced:
             summary="Summary",
             category="research",
             source="test",
-            relevance_score=9
+            relevance_score=9,
         )
 
         enhanced_item = EnhancedNewsletterItem(
@@ -403,7 +381,7 @@ class TestTelegramFormatterEnhanced:
             takeaway="💡 Why it matters: Test",
             engagement_metrics={},
             enhancement_method="ai",
-            enhancement_cost=0.0
+            enhancement_cost=0.0,
         )
 
         category_msg = CategoryMessage(
@@ -411,7 +389,7 @@ class TestTelegramFormatterEnhanced:
             emoji="🔬",
             title="🔬 RESEARCH",
             items=[enhanced_item],
-            formatted_text=long_text
+            formatted_text=long_text,
         )
 
         result = formatter.format_enhanced([category_msg])

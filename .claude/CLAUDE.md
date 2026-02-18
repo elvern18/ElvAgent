@@ -58,6 +58,30 @@ pytest tests/unit/test_researchers.py -v
 python scripts/test_foundation.py
 ```
 
+### Dev Setup
+```bash
+# Install dev dependencies
+pip install -r requirements-dev.txt
+
+# Install pre-commit hooks
+pre-commit install
+
+# Run linter
+ruff check src/ tests/
+
+# Auto-fix lint issues
+ruff check --fix src/ tests/
+
+# Check formatting
+ruff format --check src/ tests/
+
+# Type checking
+mypy src/ --ignore-missing-imports
+
+# Run tests with coverage
+pytest tests/unit/ -v --cov=src --cov-report=term-missing
+```
+
 ### Database
 ```bash
 # Activate venv first!
@@ -130,7 +154,7 @@ Claude Code autonomously chooses the appropriate execution mode. Users can overr
 
 **Examples:** New platform integration, pipeline redesign, multi-agent orchestration
 
-**Planning Code:** Ensure code is readable, maintainable and modularised. Use test-planner agent to plan on testing code. 
+**Planning Code:** Ensure code is readable, maintainable and modularised. Use test-planner agent to plan on testing code.
 
 ### Autonomous Execution
 

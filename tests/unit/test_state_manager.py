@@ -1,8 +1,8 @@
 """
 Unit tests for StateManager.
 """
+
 import pytest
-from datetime import date
 
 
 @pytest.mark.unit
@@ -14,18 +14,16 @@ async def test_init_db(state_manager):
     # Database should be initialized by the fixture
     # Just verify we can query it
     async with aiosqlite.connect(state_manager.db_path) as db:
-        cursor = await db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
+        cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = await cursor.fetchall()
         table_names = [row[0] for row in tables]
 
     expected_tables = [
-        'published_items',
-        'newsletters',
-        'publishing_logs',
-        'api_metrics',
-        'content_fingerprints'
+        "published_items",
+        "newsletters",
+        "publishing_logs",
+        "api_metrics",
+        "content_fingerprints",
     ]
 
     for table in expected_tables:
@@ -36,25 +34,22 @@ async def test_init_db(state_manager):
 def test_generate_content_id(state_manager):
     """Test content ID generation."""
     content_id = state_manager.generate_content_id(
-        url="https://example.com/article",
-        title="Test Article"
+        url="https://example.com/article", title="Test Article"
     )
 
     # Should be a SHA-256 hash (64 hex characters)
     assert len(content_id) == 64
-    assert all(c in '0123456789abcdef' for c in content_id)
+    assert all(c in "0123456789abcdef" for c in content_id)
 
     # Same input should produce same hash
     content_id2 = state_manager.generate_content_id(
-        url="https://example.com/article",
-        title="Test Article"
+        url="https://example.com/article", title="Test Article"
     )
     assert content_id == content_id2
 
     # Different input should produce different hash
     content_id3 = state_manager.generate_content_id(
-        url="https://example.com/different",
-        title="Different Article"
+        url="https://example.com/different", title="Different Article"
     )
     assert content_id != content_id3
 
@@ -63,10 +58,7 @@ def test_generate_content_id(state_manager):
 @pytest.mark.asyncio
 async def test_check_duplicate_not_exists(state_manager):
     """Test duplicate check when content doesn't exist."""
-    is_dup = await state_manager.check_duplicate(
-        url="https://example.com/new",
-        title="New Article"
-    )
+    is_dup = await state_manager.check_duplicate(url="https://example.com/new", title="New Article")
 
     assert is_dup is False
 
@@ -77,15 +69,12 @@ async def test_check_duplicate_exists(state_manager):
     """Test duplicate check when content exists."""
     # Store a fingerprint
     await state_manager.store_fingerprint(
-        url="https://example.com/existing",
-        title="Existing Article",
-        source="test"
+        url="https://example.com/existing", title="Existing Article", source="test"
     )
 
     # Check should now return True
     is_dup = await state_manager.check_duplicate(
-        url="https://example.com/existing",
-        title="Existing Article"
+        url="https://example.com/existing", title="Existing Article"
     )
 
     assert is_dup is True
@@ -101,7 +90,7 @@ async def test_store_content(state_manager):
         "source": "arxiv",
         "category": "research",
         "newsletter_date": "2026-02-15-10",
-        "metadata": {"authors": ["John Doe"]}
+        "metadata": {"authors": ["John Doe"]},
     }
 
     row_id = await state_manager.store_content(item)
@@ -109,10 +98,7 @@ async def test_store_content(state_manager):
     assert row_id > 0
 
     # Verify it's now a duplicate
-    is_dup = await state_manager.check_duplicate(
-        url=item["url"],
-        title=item["title"]
-    )
+    is_dup = await state_manager.check_duplicate(url=item["url"], title=item["title"])
     assert is_dup is True
 
 
@@ -124,7 +110,7 @@ async def test_create_newsletter_record(state_manager):
         newsletter_date="2026-02-15-10",
         item_count=5,
         platforms_published=["discord", "twitter"],
-        skip_reason=None
+        skip_reason=None,
     )
 
     assert newsletter_id > 0
@@ -136,9 +122,7 @@ async def test_log_publishing_attempt(state_manager):
     """Test logging publishing attempt."""
     # First create a newsletter
     newsletter_id = await state_manager.create_newsletter_record(
-        newsletter_date="2026-02-15-10",
-        item_count=5,
-        platforms_published=["discord"]
+        newsletter_date="2026-02-15-10", item_count=5, platforms_published=["discord"]
     )
 
     # Log publishing attempt
@@ -147,7 +131,7 @@ async def test_log_publishing_attempt(state_manager):
         platform="discord",
         status="success",
         error_message=None,
-        attempt_count=1
+        attempt_count=1,
     )
 
     # Should complete without error
@@ -158,10 +142,7 @@ async def test_log_publishing_attempt(state_manager):
 async def test_track_api_usage(state_manager):
     """Test tracking API usage."""
     await state_manager.track_api_usage(
-        api_name="anthropic",
-        request_count=5,
-        token_count=1000,
-        estimated_cost=0.003
+        api_name="anthropic", request_count=5, token_count=1000, estimated_cost=0.003
     )
 
     metrics = await state_manager.get_metrics()

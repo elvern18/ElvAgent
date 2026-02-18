@@ -2,12 +2,15 @@
 State management using SQLite database.
 Handles content tracking, deduplication, metrics, and publishing logs.
 """
+
 import hashlib
 import json
-import aiosqlite
-from datetime import datetime, date
+from datetime import date
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any
+
+import aiosqlite
+
 from src.config.settings import settings
 from src.utils.logger import get_logger
 
@@ -17,7 +20,7 @@ logger = get_logger("state_manager")
 class StateManager:
     """Manage application state in SQLite database."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         """
         Initialize state manager.
 
@@ -141,8 +144,7 @@ class StateManager:
 
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
-                "SELECT 1 FROM content_fingerprints WHERE content_hash = ?",
-                (content_id,)
+                "SELECT 1 FROM content_fingerprints WHERE content_hash = ?", (content_id,)
             )
             result = await cursor.fetchone()
 
@@ -171,7 +173,7 @@ class StateManager:
                     INSERT INTO content_fingerprints (content_hash, source)
                     VALUES (?, ?)
                     """,
-                    (content_hash, source)
+                    (content_hash, source),
                 )
                 await db.commit()
                 logger.debug("fingerprint_stored", content_hash=content_hash, source=source)
@@ -179,7 +181,7 @@ class StateManager:
                 # Already exists, ignore
                 pass
 
-    async def store_content(self, item: Dict[str, Any]) -> int:
+    async def store_content(self, item: dict[str, Any]) -> int:
         """
         Store published content item.
 
@@ -211,8 +213,8 @@ class StateManager:
                     item["url"],
                     item.get("newsletter_date"),
                     item.get("category"),
-                    json.dumps(item.get("metadata", {}))
-                )
+                    json.dumps(item.get("metadata", {})),
+                ),
             )
             await db.commit()
             row_id = cursor.lastrowid
@@ -221,10 +223,7 @@ class StateManager:
         await self.store_fingerprint(item["url"], item["title"], item["source"])
 
         logger.info(
-            "content_stored",
-            content_id=content_id,
-            title=item["title"],
-            source=item["source"]
+            "content_stored", content_id=content_id, title=item["title"], source=item["source"]
         )
 
         return row_id
@@ -233,8 +232,8 @@ class StateManager:
         self,
         newsletter_date: str,
         item_count: int,
-        platforms_published: List[str],
-        skip_reason: Optional[str] = None
+        platforms_published: list[str],
+        skip_reason: str | None = None,
     ) -> int:
         """
         Create newsletter record.
@@ -255,12 +254,7 @@ class StateManager:
                 (date, item_count, platforms_published, skip_reason)
                 VALUES (?, ?, ?, ?)
                 """,
-                (
-                    newsletter_date,
-                    item_count,
-                    json.dumps(platforms_published),
-                    skip_reason
-                )
+                (newsletter_date, item_count, json.dumps(platforms_published), skip_reason),
             )
             await db.commit()
             newsletter_id = cursor.lastrowid
@@ -269,7 +263,7 @@ class StateManager:
             "newsletter_record_created",
             newsletter_id=newsletter_id,
             date=newsletter_date,
-            item_count=item_count
+            item_count=item_count,
         )
 
         return newsletter_id
@@ -279,8 +273,8 @@ class StateManager:
         newsletter_id: int,
         platform: str,
         status: str,
-        error_message: Optional[str] = None,
-        attempt_count: int = 1
+        error_message: str | None = None,
+        attempt_count: int = 1,
     ):
         """
         Log a publishing attempt.
@@ -299,7 +293,7 @@ class StateManager:
                 (newsletter_id, platform, status, error_message, attempt_count)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (newsletter_id, platform, status, error_message, attempt_count)
+                (newsletter_id, platform, status, error_message, attempt_count),
             )
             await db.commit()
 
@@ -308,7 +302,7 @@ class StateManager:
             newsletter_id=newsletter_id,
             platform=platform,
             status=status,
-            attempt=attempt_count
+            attempt=attempt_count,
         )
 
     async def track_api_usage(
@@ -316,7 +310,7 @@ class StateManager:
         api_name: str,
         request_count: int = 1,
         token_count: int = 0,
-        estimated_cost: float = 0.0
+        estimated_cost: float = 0.0,
     ):
         """
         Track API usage metrics.
@@ -340,7 +334,7 @@ class StateManager:
                     token_count = token_count + excluded.token_count,
                     estimated_cost = estimated_cost + excluded.estimated_cost
                 """,
-                (today, api_name, request_count, token_count, estimated_cost)
+                (today, api_name, request_count, token_count, estimated_cost),
             )
             await db.commit()
 
@@ -349,10 +343,10 @@ class StateManager:
             api_name=api_name,
             requests=request_count,
             tokens=token_count,
-            cost=f"${estimated_cost:.4f}"
+            cost=f"${estimated_cost:.4f}",
         )
 
-    async def get_metrics(self, target_date: Optional[str] = None) -> Dict[str, Any]:
+    async def get_metrics(self, target_date: str | None = None) -> dict[str, Any]:
         """
         Get API usage metrics for a specific date.
 
@@ -372,7 +366,7 @@ class StateManager:
                 FROM api_metrics
                 WHERE date = ?
                 """,
-                (target_date,)
+                (target_date,),
             )
             rows = await cursor.fetchall()
 
@@ -381,11 +375,7 @@ class StateManager:
 
         for row in rows:
             api_name, requests, tokens, cost = row
-            metrics[api_name] = {
-                "requests": requests,
-                "tokens": tokens,
-                "cost": cost
-            }
+            metrics[api_name] = {"requests": requests, "tokens": tokens, "cost": cost}
             total_cost += cost
 
         metrics["total_cost"] = total_cost

@@ -5,29 +5,28 @@ Coordinates HeadlineWriter, TakeawayGenerator, EngagementEnricher, and SocialFor
 to transform NewsletterItems into optimized social media content with retry logic
 and template fallbacks.
 """
-import asyncio
+
 import time
-from typing import List, Dict, Tuple
 from collections import defaultdict
 
-from src.models.newsletter import NewsletterItem
 from src.models.enhanced_newsletter import (
-    EnhancedNewsletterItem,
     CategoryMessage,
-    EnhancementMetrics
+    EnhancedNewsletterItem,
+    EnhancementMetrics,
 )
-from src.publishing.enhancers.headline_writer import HeadlineWriter
-from src.publishing.enhancers.takeaway_generator import TakeawayGenerator
+from src.models.newsletter import NewsletterItem
 from src.publishing.enhancers.engagement_enricher import EngagementEnricher
+from src.publishing.enhancers.headline_writer import HeadlineWriter
 from src.publishing.enhancers.social_formatter import SocialFormatter
+from src.publishing.enhancers.takeaway_generator import TakeawayGenerator
 from src.publishing.enhancers.templates import (
+    get_category_emoji,
+    get_category_title,
     get_template_headline,
     get_template_takeaway,
-    get_category_emoji,
-    get_category_title
 )
-from src.utils.retry import retry_async
 from src.utils.logger import get_logger
+from src.utils.retry import retry_async
 
 logger = get_logger("content_enhancer")
 
@@ -56,11 +55,8 @@ class ContentEnhancer:
         logger.info("content_enhancer_initialized")
 
     async def enhance_newsletter(
-        self,
-        items: List[NewsletterItem],
-        date: str,
-        max_items_per_category: int = 5
-    ) -> Tuple[List[CategoryMessage], EnhancementMetrics]:
+        self, items: list[NewsletterItem], date: str, max_items_per_category: int = 5
+    ) -> tuple[list[CategoryMessage], EnhancementMetrics]:
         """
         Enhance newsletter items and format category messages.
 
@@ -76,7 +72,7 @@ class ContentEnhancer:
             "enhancement_started",
             total_items=len(items),
             date=date,
-            max_per_category=max_items_per_category
+            max_per_category=max_items_per_category,
         )
 
         # Initialize metrics
@@ -86,12 +82,7 @@ class ContentEnhancer:
         # Step 1: Enhance each item sequentially
         enhanced_items = []
         for idx, item in enumerate(items, 1):
-            logger.debug(
-                "enhancing_item",
-                item_num=idx,
-                total=len(items),
-                title=item.title[:50]
-            )
+            logger.debug("enhancing_item", item_num=idx, total=len(items), title=item.title[:50])
 
             enhanced_item = await self._enhance_single_item(item, metrics)
             enhanced_items.append(enhanced_item)
@@ -102,23 +93,16 @@ class ContentEnhancer:
         logger.info(
             "items_grouped",
             categories=list(grouped_items.keys()),
-            total_after_grouping=sum(len(items) for items in grouped_items.values())
+            total_after_grouping=sum(len(items) for items in grouped_items.values()),
         )
 
         # Step 3: Format each category
         category_messages = []
         for category, category_items in grouped_items.items():
-            logger.debug(
-                "formatting_category",
-                category=category,
-                item_count=len(category_items)
-            )
+            logger.debug("formatting_category", category=category, item_count=len(category_items))
 
             category_message = await self._format_category_message(
-                category=category,
-                items=category_items,
-                date=date,
-                metrics=metrics
+                category=category, items=category_items, date=date, metrics=metrics
             )
             category_messages.append(category_message)
 
@@ -133,15 +117,13 @@ class ContentEnhancer:
             success_rate=f"{metrics.success_rate:.1f}%",
             total_cost=f"${metrics.total_cost:.4f}",
             total_time=f"{metrics.total_time_seconds:.2f}s",
-            categories=len(category_messages)
+            categories=len(category_messages),
         )
 
         return category_messages, metrics
 
     async def _enhance_single_item(
-        self,
-        item: NewsletterItem,
-        metrics: EnhancementMetrics
+        self, item: NewsletterItem, metrics: EnhancementMetrics
     ) -> EnhancedNewsletterItem:
         """
         Enhance a single item with retry logic and template fallback.
@@ -156,11 +138,7 @@ class ContentEnhancer:
         try:
             # Try AI enhancement with retry (3 attempts, exponential backoff)
             enhanced_item = await retry_async(
-                self._enhance_with_ai,
-                item,
-                max_attempts=3,
-                min_wait=1.0,
-                max_wait=4.0
+                self._enhance_with_ai, item, max_attempts=3, min_wait=1.0, max_wait=4.0
             )
 
             # Success: increment AI counter and track cost
@@ -170,7 +148,7 @@ class ContentEnhancer:
             logger.debug(
                 "item_enhanced_with_ai",
                 title=item.title[:50],
-                cost=f"${enhanced_item.enhancement_cost:.4f}"
+                cost=f"${enhanced_item.enhancement_cost:.4f}",
             )
 
             return enhanced_item
@@ -181,7 +159,7 @@ class ContentEnhancer:
                 "ai_enhancement_failed_using_template",
                 title=item.title[:50],
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
 
             enhanced_item = self._enhance_with_template(item)
@@ -217,7 +195,7 @@ class ContentEnhancer:
             takeaway=takeaway,
             engagement_metrics=metrics,
             enhancement_method="ai",
-            enhancement_cost=cost1 + cost2
+            enhancement_cost=cost1 + cost2,
         )
 
     def _enhance_with_template(self, item: NewsletterItem) -> EnhancedNewsletterItem:
@@ -240,14 +218,12 @@ class ContentEnhancer:
             takeaway=takeaway,
             engagement_metrics=metrics,
             enhancement_method="template",
-            enhancement_cost=0.0
+            enhancement_cost=0.0,
         )
 
     def _group_by_category(
-        self,
-        items: List[EnhancedNewsletterItem],
-        max_per_category: int = 5
-    ) -> Dict[str, List[EnhancedNewsletterItem]]:
+        self, items: list[EnhancedNewsletterItem], max_per_category: int = 5
+    ) -> dict[str, list[EnhancedNewsletterItem]]:
         """
         Group items by category and take top N per category.
 
@@ -266,16 +242,12 @@ class ContentEnhancer:
         # Sort each category by relevance_score (descending) and take top N
         result = {}
         for category, category_items in grouped.items():
-            sorted_items = sorted(
-                category_items,
-                key=lambda x: x.relevance_score,
-                reverse=True
-            )
+            sorted_items = sorted(category_items, key=lambda x: x.relevance_score, reverse=True)
             result[category] = sorted_items[:max_per_category]
 
         logger.debug(
             "items_grouped_by_category",
-            categories={cat: len(items) for cat, items in result.items()}
+            categories={cat: len(items) for cat, items in result.items()},
         )
 
         return result
@@ -283,9 +255,9 @@ class ContentEnhancer:
     async def _format_category_message(
         self,
         category: str,
-        items: List[EnhancedNewsletterItem],
+        items: list[EnhancedNewsletterItem],
         date: str,
-        metrics: EnhancementMetrics
+        metrics: EnhancementMetrics,
     ) -> CategoryMessage:
         """
         Format category message using AI or fallback to simple formatting.
@@ -313,16 +285,12 @@ class ContentEnhancer:
                 date,
                 max_attempts=3,
                 min_wait=1.0,
-                max_wait=4.0
+                max_wait=4.0,
             )
 
             metrics.total_cost += cost
 
-            logger.debug(
-                "category_formatted_with_ai",
-                category=category,
-                cost=f"${cost:.4f}"
-            )
+            logger.debug("category_formatted_with_ai", category=category, cost=f"${cost:.4f}")
 
         except Exception as e:
             # Fallback to simple formatting
@@ -330,19 +298,13 @@ class ContentEnhancer:
                 "ai_formatting_failed_using_simple",
                 category=category,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
 
             formatted_text = self.social_formatter.format_category_simple(
-                category=category,
-                title=title,
-                items=items
+                category=category, title=title, items=items
             )
 
         return CategoryMessage(
-            category=category,
-            emoji=emoji,
-            title=title,
-            items=items,
-            formatted_text=formatted_text
+            category=category, emoji=emoji, title=title, items=items, formatted_text=formatted_text
         )

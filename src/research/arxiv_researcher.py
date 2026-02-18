@@ -2,10 +2,13 @@
 ArXiv researcher for fetching latest AI/ML papers.
 Fetches from ArXiv RSS feed and scores relevance.
 """
-import httpx
-import feedparser
+
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Any
+
+import feedparser
+import httpx
+
 from src.research.base import BaseResearcher, ContentItem
 
 
@@ -18,7 +21,7 @@ class ArXivResearcher(BaseResearcher):
         """Initialize ArXiv researcher."""
         super().__init__(source_name="arxiv", max_items=max_items)
 
-    async def fetch_content(self) -> List[ContentItem]:
+    async def fetch_content(self) -> list[ContentItem]:
         """
         Fetch and parse ArXiv RSS feed.
 
@@ -36,11 +39,7 @@ class ArXivResearcher(BaseResearcher):
             # Parse RSS
             feed = feedparser.parse(response.content)
 
-            self.logger.info(
-                "feed_parsed",
-                source=self.source_name,
-                entry_count=len(feed.entries)
-            )
+            self.logger.info("feed_parsed", source=self.source_name, entry_count=len(feed.entries))
 
             for entry in feed.entries:
                 try:
@@ -69,9 +68,9 @@ class ArXivResearcher(BaseResearcher):
                         metadata={
                             "authors": item_data.get("authors", []),
                             "pdf_url": item_data.get("pdf_url"),
-                            "arxiv_id": item_data.get("arxiv_id")
+                            "arxiv_id": item_data.get("arxiv_id"),
                         },
-                        published_date=item_data["published_date"]
+                        published_date=item_data["published_date"],
                     )
 
                     items.append(content_item)
@@ -80,21 +79,17 @@ class ArXivResearcher(BaseResearcher):
                     self.logger.warning(
                         "entry_parse_failed",
                         error=str(e),
-                        entry_title=entry.get("title", "unknown")
+                        entry_title=entry.get("title", "unknown"),
                     )
                     continue
 
         except Exception as e:
-            self.logger.error(
-                "feed_fetch_failed",
-                source=self.source_name,
-                error=str(e)
-            )
+            self.logger.error("feed_fetch_failed", source=self.source_name, error=str(e))
             raise
 
         return items
 
-    def _parse_entry(self, entry: Any) -> Dict[str, Any]:
+    def _parse_entry(self, entry: Any) -> dict[str, Any]:
         """
         Parse RSS entry into structured data.
 
@@ -131,10 +126,9 @@ class ArXivResearcher(BaseResearcher):
         if "published_parsed" in entry and entry.published_parsed:
             try:
                 import time
-                published_date = datetime.fromtimestamp(
-                    time.mktime(entry.published_parsed)
-                )
-            except:
+
+                published_date = datetime.fromtimestamp(time.mktime(entry.published_parsed))
+            except Exception:
                 pass
 
         return {
@@ -144,10 +138,10 @@ class ArXivResearcher(BaseResearcher):
             "arxiv_id": arxiv_id,
             "authors": authors,
             "summary": summary,
-            "published_date": published_date
+            "published_date": published_date,
         }
 
-    def score_relevance(self, item: Dict[str, Any]) -> int:
+    def score_relevance(self, item: dict[str, Any]) -> int:
         """
         Score relevance from 1-10.
 
@@ -171,33 +165,47 @@ class ArXivResearcher(BaseResearcher):
 
         # High-impact keywords (+2)
         high_impact = [
-            "llm", "large language model", "transformer",
-            "diffusion", "multimodal", "agent", "reasoning",
-            "gpt", "claude", "bert", "vision-language"
+            "llm",
+            "large language model",
+            "transformer",
+            "diffusion",
+            "multimodal",
+            "agent",
+            "reasoning",
+            "gpt",
+            "claude",
+            "bert",
+            "vision-language",
         ]
         if any(keyword in text for keyword in high_impact):
             score += 2
 
         # Code/practical keywords (+1)
-        practical = [
-            "code", "implementation", "open-source",
-            "benchmark", "dataset", "application"
-        ]
+        practical = ["code", "implementation", "open-source", "benchmark", "dataset", "application"]
         if any(keyword in text for keyword in practical):
             score += 1
 
         # Novel/breakthrough keywords (+1)
         novel = [
-            "novel", "breakthrough", "state-of-the-art", "sota",
-            "outperform", "surpass", "improve"
+            "novel",
+            "breakthrough",
+            "state-of-the-art",
+            "sota",
+            "outperform",
+            "surpass",
+            "improve",
         ]
         if any(keyword in text for keyword in novel):
             score += 1
 
         # Technical depth keywords (+1)
         technical = [
-            "architecture", "training", "optimization",
-            "fine-tuning", "pre-training", "alignment"
+            "architecture",
+            "training",
+            "optimization",
+            "fine-tuning",
+            "pre-training",
+            "alignment",
         ]
         if any(keyword in text for keyword in technical):
             score += 1

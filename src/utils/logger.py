@@ -2,18 +2,17 @@
 Structured logging configuration using structlog.
 Provides JSON logging for production and pretty console output for development.
 """
-import sys
+
 import logging
+import sys
 from pathlib import Path
-from typing import Optional
+
 import structlog
 from structlog.types import Processor
 
 
 def configure_logging(
-    log_level: str = "INFO",
-    log_file: Optional[Path] = None,
-    pretty_console: bool = True
+    log_level: str = "INFO", log_file: Path | None = None, pretty_console: bool = True
 ) -> structlog.BoundLogger:
     """
     Configure structured logging with structlog.
@@ -53,15 +52,14 @@ def configure_logging(
         # Pretty console output for development
         processors = shared_processors + [
             structlog.dev.ConsoleRenderer(
-                colors=True,
-                exception_formatter=structlog.dev.plain_traceback
+                colors=True, exception_formatter=structlog.dev.plain_traceback
             )
         ]
     else:
         # JSON output for production
         processors = shared_processors + [
             structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ]
 
     structlog.configure(
@@ -75,7 +73,7 @@ def configure_logging(
     return structlog.get_logger()
 
 
-def get_logger(name: Optional[str] = None) -> structlog.BoundLogger:
+def get_logger(name: str | None = None) -> structlog.BoundLogger:
     """
     Get a logger instance with optional name binding.
 

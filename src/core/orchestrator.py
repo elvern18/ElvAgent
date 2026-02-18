@@ -2,19 +2,19 @@
 Orchestrator for coordinating the full newsletter cycle.
 Manages research → filter → enhance → publish → record phases.
 """
+
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Union, Tuple
 
-from src.research.base import BaseResearcher, ContentItem
-from src.publishing.base import BasePublisher, PublishResult
+from src.config.settings import settings
 from src.core.content_pipeline import ContentPipeline
 from src.core.state_manager import StateManager
-from src.models.newsletter import Newsletter
 from src.models.enhanced_newsletter import CategoryMessage, EnhancementMetrics
+from src.models.newsletter import Newsletter
+from src.publishing.base import BasePublisher, PublishResult
 from src.publishing.content_enhancer import ContentEnhancer
-from src.config.settings import settings
+from src.research.base import BaseResearcher, ContentItem
 from src.utils.logger import get_logger
 
 logger = get_logger("orchestrator")
@@ -25,23 +25,19 @@ class CycleResult:
     """Result of a complete newsletter cycle."""
 
     success: bool
-    newsletter: Optional[Newsletter]
+    newsletter: Newsletter | None
     item_count: int
     filtered_count: int
-    publish_results: List[PublishResult]
+    publish_results: list[PublishResult]
     total_cost: float
-    error: Optional[str] = None
+    error: str | None = None
     enhancement_enabled: bool = False
-    enhancement_metrics: Optional[EnhancementMetrics] = None
+    enhancement_metrics: EnhancementMetrics | None = None
 
     @property
-    def platforms_published(self) -> List[str]:
+    def platforms_published(self) -> list[str]:
         """Get list of successfully published platforms."""
-        return [
-            result.platform
-            for result in self.publish_results
-            if result.success
-        ]
+        return [result.platform for result in self.publish_results if result.success]
 
 
 class Orchestrator:
@@ -59,9 +55,9 @@ class Orchestrator:
     def __init__(
         self,
         state_manager: StateManager,
-        researchers: List[BaseResearcher],
-        publishers: List[BasePublisher],
-        pipeline: ContentPipeline
+        researchers: list[BaseResearcher],
+        publishers: list[BasePublisher],
+        pipeline: ContentPipeline,
     ):
         """
         Initialize orchestrator with dependencies.
@@ -103,7 +99,7 @@ class Orchestrator:
                     filtered_count=0,
                     publish_results=[],
                     total_cost=0.0,
-                    error="No items found"
+                    error="No items found",
                 )
 
             # Phase 2: Filter and assemble
@@ -138,7 +134,7 @@ class Orchestrator:
                 items=len(items),
                 filtered=newsletter.item_count,
                 published_platforms=len([r for r in publish_results if r.success]),
-                cost=f"${total_cost:.4f}"
+                cost=f"${total_cost:.4f}",
             )
 
             return CycleResult(
@@ -149,15 +145,11 @@ class Orchestrator:
                 publish_results=publish_results,
                 total_cost=total_cost,
                 enhancement_enabled=bool(enhancement_metrics),
-                enhancement_metrics=enhancement_metrics
+                enhancement_metrics=enhancement_metrics,
             )
 
         except Exception as e:
-            logger.error(
-                "cycle_failed",
-                error=str(e),
-                error_type=type(e).__name__
-            )
+            logger.error("cycle_failed", error=str(e), error_type=type(e).__name__)
 
             return CycleResult(
                 success=False,
@@ -166,10 +158,10 @@ class Orchestrator:
                 filtered_count=0,
                 publish_results=[],
                 total_cost=0.0,
-                error=str(e)
+                error=str(e),
             )
 
-    async def research_phase(self) -> List[ContentItem]:
+    async def research_phase(self) -> list[ContentItem]:
         """
         Execute research phase with all researchers in parallel.
 
@@ -198,28 +190,24 @@ class Orchestrator:
                     "researcher_failed",
                     source=researcher.source_name,
                     error=str(result),
-                    error_type=type(result).__name__
+                    error_type=type(result).__name__,
                 )
                 failed_count += 1
             else:
                 # Research succeeded
                 all_items.extend(result)
-                logger.info(
-                    "researcher_success",
-                    source=researcher.source_name,
-                    items=len(result)
-                )
+                logger.info("researcher_success", source=researcher.source_name, items=len(result))
 
         logger.info(
             "research_phase_complete",
             total_items=len(all_items),
             successful_sources=len(self.researchers) - failed_count,
-            failed_sources=failed_count
+            failed_sources=failed_count,
         )
 
         return all_items
 
-    async def filter_phase(self, items: List[ContentItem]) -> Newsletter:
+    async def filter_phase(self, items: list[ContentItem]) -> Newsletter:
         """
         Execute filter phase through ContentPipeline.
 
@@ -239,17 +227,14 @@ class Orchestrator:
         newsletter = await self.pipeline.process(items, newsletter_date)
 
         logger.info(
-            "filter_phase_complete",
-            output_count=newsletter.item_count,
-            date=newsletter_date
+            "filter_phase_complete", output_count=newsletter.item_count, date=newsletter_date
         )
 
         return newsletter
 
     async def enhance_phase(
-        self,
-        newsletter: Newsletter
-    ) -> Tuple[List[CategoryMessage], EnhancementMetrics]:
+        self, newsletter: Newsletter
+    ) -> tuple[list[CategoryMessage], EnhancementMetrics]:
         """
         Execute enhancement phase with ContentEnhancer.
 
@@ -264,14 +249,14 @@ class Orchestrator:
         category_messages, metrics = await self.enhancer.enhance_newsletter(
             items=newsletter.items,
             date=newsletter.date,
-            max_items_per_category=settings.max_items_per_category
+            max_items_per_category=settings.max_items_per_category,
         )
 
         logger.info(
             "enhance_phase_complete",
             categories=len(category_messages),
             ai_enhanced=metrics.ai_enhanced,
-            cost=f"${metrics.total_cost:.4f}"
+            cost=f"${metrics.total_cost:.4f}",
         )
 
         # Track cost in StateManager
@@ -279,15 +264,14 @@ class Orchestrator:
             api_name="content_enhancement",
             request_count=metrics.total_items,
             token_count=0,
-            estimated_cost=metrics.total_cost
+            estimated_cost=metrics.total_cost,
         )
 
         return category_messages, metrics
 
     async def publish_phase(
-        self,
-        content: Union[Newsletter, List[CategoryMessage]]
-    ) -> List[PublishResult]:
+        self, content: Newsletter | list[CategoryMessage]
+    ) -> list[PublishResult]:
         """
         Execute publish phase to all platforms in parallel.
 
@@ -301,12 +285,14 @@ class Orchestrator:
             Uses asyncio.gather with return_exceptions=True to allow partial success.
         """
         # Detect content type
-        is_enhanced = isinstance(content, list) and len(content) > 0 and isinstance(content[0], CategoryMessage)
+        is_enhanced = (
+            isinstance(content, list)
+            and len(content) > 0
+            and isinstance(content[0], CategoryMessage)
+        )
 
         logger.info(
-            "publish_phase_start",
-            publisher_count=len(self.publishers),
-            enhanced=is_enhanced
+            "publish_phase_start", publisher_count=len(self.publishers), enhanced=is_enhanced
         )
 
         if len(self.publishers) == 0:
@@ -316,12 +302,16 @@ class Orchestrator:
         # Publish to all platforms in parallel
         tasks = []
         for publisher in self.publishers:
-            if is_enhanced and hasattr(publisher, 'publish_enhanced'):
+            if is_enhanced and hasattr(publisher, "publish_enhanced"):
                 # Use enhanced publishing if available
                 tasks.append(publisher.publish_enhanced(content))
             else:
                 # Fallback to standard publishing
-                newsletter = content if isinstance(content, Newsletter) else self._category_to_newsletter(content)
+                newsletter = (
+                    content
+                    if isinstance(content, Newsletter)
+                    else self._category_to_newsletter(content)
+                )
                 tasks.append(publisher.publish_newsletter(newsletter))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -335,15 +325,11 @@ class Orchestrator:
                 # Publishing crashed
                 publish_results.append(
                     PublishResult(
-                        platform=publisher.platform_name,
-                        success=False,
-                        error=str(result)
+                        platform=publisher.platform_name, success=False, error=str(result)
                     )
                 )
                 logger.error(
-                    "publisher_crashed",
-                    platform=publisher.platform_name,
-                    error=str(result)
+                    "publisher_crashed", platform=publisher.platform_name, error=str(result)
                 )
             else:
                 # Got PublishResult
@@ -357,12 +343,12 @@ class Orchestrator:
             "publish_phase_complete",
             successful=successful,
             failed=failed,
-            platforms=[r.platform for r in publish_results if r.success]
+            platforms=[r.platform for r in publish_results if r.success],
         )
 
         return publish_results
 
-    def _category_to_newsletter(self, category_messages: List[CategoryMessage]) -> Newsletter:
+    def _category_to_newsletter(self, category_messages: list[CategoryMessage]) -> Newsletter:
         """
         Convert CategoryMessage back to Newsletter for publishers without enhance support.
 
@@ -376,20 +362,24 @@ class Orchestrator:
         for msg in category_messages:
             all_items.extend([item.original_item for item in msg.items])
 
-        date = category_messages[0].items[0].original_item.published_date.strftime("%Y-%m-%d-%H") if category_messages and category_messages[0].items else datetime.now().strftime("%Y-%m-%d-%H")
+        date = (
+            category_messages[0].items[0].original_item.published_date.strftime("%Y-%m-%d-%H")
+            if category_messages and category_messages[0].items
+            else datetime.now().strftime("%Y-%m-%d-%H")
+        )
 
         return Newsletter(
             date=date,
             items=all_items,
             summary=f"AI-enhanced newsletter with {len(all_items)} items",
-            item_count=len(all_items)
+            item_count=len(all_items),
         )
 
     async def record_phase(
         self,
         newsletter: Newsletter,
-        publish_results: List[PublishResult],
-        enhancement_metrics: Optional[EnhancementMetrics] = None
+        publish_results: list[PublishResult],
+        enhancement_metrics: EnhancementMetrics | None = None,
     ):
         """
         Record newsletter and items to database.
@@ -409,42 +399,36 @@ class Orchestrator:
                 "enhancement_metrics",
                 ai_enhanced=enhancement_metrics.ai_enhanced,
                 success_rate=f"{enhancement_metrics.success_rate:.1f}%",
-                cost=f"${enhancement_metrics.total_cost:.4f}"
+                cost=f"${enhancement_metrics.total_cost:.4f}",
             )
 
         try:
             # Get successful platforms
-            platforms_published = [
-                result.platform
-                for result in publish_results
-                if result.success
-            ]
+            platforms_published = [result.platform for result in publish_results if result.success]
 
             # Create newsletter record
             newsletter_id = await self.state_manager.create_newsletter_record(
                 newsletter_date=newsletter.date,
                 item_count=newsletter.item_count,
                 platforms_published=platforms_published,
-                skip_reason=None
+                skip_reason=None,
             )
 
             # Store each item
             for item in newsletter.items:
                 try:
-                    await self.state_manager.store_content({
-                        "url": item.url,
-                        "title": item.title,
-                        "source": item.source,
-                        "category": item.category,
-                        "newsletter_date": newsletter.date,
-                        "metadata": item.metadata
-                    })
-                except Exception as e:
-                    logger.warning(
-                        "item_storage_failed",
-                        title=item.title,
-                        error=str(e)
+                    await self.state_manager.store_content(
+                        {
+                            "url": item.url,
+                            "title": item.title,
+                            "source": item.source,
+                            "category": item.category,
+                            "newsletter_date": newsletter.date,
+                            "metadata": item.metadata,
+                        }
                     )
+                except Exception as e:
+                    logger.warning("item_storage_failed", title=item.title, error=str(e))
 
             # Log publishing attempts
             for result in publish_results:
@@ -453,19 +437,15 @@ class Orchestrator:
                     platform=result.platform,
                     status="success" if result.success else "failed",
                     error_message=result.error,
-                    attempt_count=1
+                    attempt_count=1,
                 )
 
             logger.info(
                 "record_phase_complete",
                 newsletter_id=newsletter_id,
-                items_stored=newsletter.item_count
+                items_stored=newsletter.item_count,
             )
 
         except Exception as e:
-            logger.error(
-                "record_phase_failed",
-                error=str(e),
-                error_type=type(e).__name__
-            )
+            logger.error("record_phase_failed", error=str(e), error_type=type(e).__name__)
             # Don't re-raise - recording failure shouldn't crash the cycle

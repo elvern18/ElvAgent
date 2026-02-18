@@ -2,10 +2,11 @@
 Rate limiting utilities to prevent API quota exhaustion.
 Uses token bucket algorithm for smooth rate limiting.
 """
-import time
+
 import asyncio
+import time
 from collections import defaultdict
-from typing import Dict
+
 from src.config.constants import RATE_LIMITS
 from src.utils.logger import get_logger
 
@@ -17,8 +18,8 @@ class RateLimiter:
 
     def __init__(self):
         """Initialize rate limiter."""
-        self.buckets: Dict[str, float] = defaultdict(float)
-        self.last_update: Dict[str, float] = defaultdict(float)
+        self.buckets: dict[str, float] = defaultdict(float)
+        self.last_update: dict[str, float] = defaultdict(float)
 
     def _refill_bucket(self, service: str, limit: int) -> float:
         """
@@ -43,10 +44,7 @@ class RateLimiter:
         tokens_to_add = (elapsed / 60.0) * limit  # Refill rate per second
 
         # Update bucket (capped at limit)
-        self.buckets[service] = min(
-            float(limit),
-            self.buckets[service] + tokens_to_add
-        )
+        self.buckets[service] = min(float(limit), self.buckets[service] + tokens_to_add)
         self.last_update[service] = now
 
         return self.buckets[service]
@@ -71,7 +69,7 @@ class RateLimiter:
                     "rate_limit_acquired",
                     service=service,
                     tokens_used=tokens,
-                    tokens_remaining=self.buckets[service]
+                    tokens_remaining=self.buckets[service],
                 )
                 return
 
@@ -83,7 +81,7 @@ class RateLimiter:
                 "rate_limit_waiting",
                 service=service,
                 wait_seconds=f"{wait_time:.2f}",
-                tokens_needed=tokens_needed
+                tokens_needed=tokens_needed,
             )
 
             await asyncio.sleep(wait_time)
@@ -108,7 +106,7 @@ class RateLimiter:
                     "rate_limit_acquired",
                     service=service,
                     tokens_used=tokens,
-                    tokens_remaining=self.buckets[service]
+                    tokens_remaining=self.buckets[service],
                 )
                 return
 
@@ -120,7 +118,7 @@ class RateLimiter:
                 "rate_limit_waiting",
                 service=service,
                 wait_seconds=f"{wait_time:.2f}",
-                tokens_needed=tokens_needed
+                tokens_needed=tokens_needed,
             )
 
             time.sleep(wait_time)

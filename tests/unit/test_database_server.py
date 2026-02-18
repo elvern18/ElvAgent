@@ -1,8 +1,9 @@
 """
 Unit tests for Database MCP Server.
 """
+
 import pytest
-from unittest.mock import AsyncMock, Mock
+
 from src.mcp_servers.database_server import DatabaseServer
 
 
@@ -26,10 +27,7 @@ async def test_check_duplicate_not_exists(temp_dir):
     server = DatabaseServer(db_path=db_path)
     await server.state_manager.init_db()
 
-    result = await server._check_duplicate(
-        url="https://example.com/new",
-        title="New Article"
-    )
+    result = await server._check_duplicate(url="https://example.com/new", title="New Article")
 
     assert result["is_duplicate"] is False
     assert "content_id" in result
@@ -47,14 +45,11 @@ async def test_check_duplicate_exists(temp_dir):
 
     # Store a fingerprint first
     await server.state_manager.store_fingerprint(
-        url="https://example.com/existing",
-        title="Existing Article",
-        source="test"
+        url="https://example.com/existing", title="Existing Article", source="test"
     )
 
     result = await server._check_duplicate(
-        url="https://example.com/existing",
-        title="Existing Article"
+        url="https://example.com/existing", title="Existing Article"
     )
 
     assert result["is_duplicate"] is True
@@ -76,7 +71,7 @@ async def test_store_content_success(temp_dir):
         "source": "arxiv",
         "category": "research",
         "newsletter_date": "2026-02-15-10",
-        "metadata": {"authors": ["John Doe"]}
+        "metadata": {"authors": ["John Doe"]},
     }
 
     result = await server._store_content(item)
@@ -133,10 +128,7 @@ async def test_get_metrics_with_data(temp_dir):
 
     # Track some usage
     await server.state_manager.track_api_usage(
-        api_name="anthropic",
-        request_count=5,
-        token_count=1000,
-        estimated_cost=0.003
+        api_name="anthropic", request_count=5, token_count=1000, estimated_cost=0.003
     )
 
     result = await server._get_metrics()

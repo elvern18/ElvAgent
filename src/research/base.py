@@ -2,9 +2,11 @@
 Base researcher class that all content researchers inherit from.
 Defines the interface for content research operations.
 """
+
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from src.config.constants import MAX_ITEMS_PER_SOURCE, RESEARCH_TIME_WINDOW_HOURS
 from src.utils.logger import get_logger
 
@@ -22,8 +24,8 @@ class ContentItem:
         category: str,
         relevance_score: int,
         summary: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        published_date: Optional[datetime] = None
+        metadata: dict[str, Any] | None = None,
+        published_date: datetime | None = None,
     ):
         """
         Initialize content item.
@@ -47,7 +49,7 @@ class ContentItem:
         self.metadata = metadata or {}
         self.published_date = published_date or datetime.now()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         return {
             "title": self.title,
@@ -57,11 +59,11 @@ class ContentItem:
             "relevance_score": self.relevance_score,
             "summary": self.summary,
             "metadata": self.metadata,
-            "published_date": self.published_date.isoformat() if self.published_date else None
+            "published_date": self.published_date.isoformat() if self.published_date else None,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ContentItem":
+    def from_dict(cls, data: dict[str, Any]) -> "ContentItem":
         """Create from dictionary representation."""
         published_date = None
         if data.get("published_date"):
@@ -75,7 +77,7 @@ class ContentItem:
             relevance_score=data["relevance_score"],
             summary=data["summary"],
             metadata=data.get("metadata", {}),
-            published_date=published_date
+            published_date=published_date,
         )
 
 
@@ -103,7 +105,7 @@ class BaseResearcher(ABC):
         self.logger = get_logger(f"researcher.{source_name}")
 
     @abstractmethod
-    async def fetch_content(self) -> List[ContentItem]:
+    async def fetch_content(self) -> list[ContentItem]:
         """
         Fetch and parse content from source.
 
@@ -116,7 +118,7 @@ class BaseResearcher(ABC):
         pass
 
     @abstractmethod
-    def score_relevance(self, item: Dict[str, Any]) -> int:
+    def score_relevance(self, item: dict[str, Any]) -> int:
         """
         Score content relevance from 1-10.
 
@@ -128,7 +130,7 @@ class BaseResearcher(ABC):
         """
         pass
 
-    async def research(self) -> List[ContentItem]:
+    async def research(self) -> list[ContentItem]:
         """
         Main research method.
         Fetches content, scores relevance, and returns top items.
@@ -142,22 +144,16 @@ class BaseResearcher(ABC):
             # Fetch all content
             items = await self.fetch_content()
 
-            self.logger.info(
-                "content_fetched",
-                source=self.source_name,
-                item_count=len(items)
-            )
+            self.logger.info("content_fetched", source=self.source_name, item_count=len(items))
 
             # Sort by relevance score (descending)
             items.sort(key=lambda x: x.relevance_score, reverse=True)
 
             # Return top N items
-            top_items = items[:self.max_items]
+            top_items = items[: self.max_items]
 
             self.logger.info(
-                "research_complete",
-                source=self.source_name,
-                returned_count=len(top_items)
+                "research_complete", source=self.source_name, returned_count=len(top_items)
             )
 
             return top_items
@@ -167,14 +163,12 @@ class BaseResearcher(ABC):
                 "research_failed",
                 source=self.source_name,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             raise
 
     def is_within_time_window(
-        self,
-        published_date: datetime,
-        hours: int = RESEARCH_TIME_WINDOW_HOURS
+        self, published_date: datetime, hours: int = RESEARCH_TIME_WINDOW_HOURS
     ) -> bool:
         """
         Check if content is within the research time window.
@@ -200,28 +194,27 @@ class BaseResearcher(ABC):
             Normalized URL
         """
         # Remove common tracking parameters
-        tracking_params = ['utm_source', 'utm_medium', 'utm_campaign', 'ref', 'source']
+        tracking_params = ["utm_source", "utm_medium", "utm_campaign", "ref", "source"]
 
-        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+        from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
         parsed = urlparse(url)
         query_params = parse_qs(parsed.query)
 
         # Filter out tracking parameters
-        filtered_params = {
-            k: v for k, v in query_params.items()
-            if k not in tracking_params
-        }
+        filtered_params = {k: v for k, v in query_params.items() if k not in tracking_params}
 
         # Reconstruct URL
         new_query = urlencode(filtered_params, doseq=True)
-        normalized = urlunparse((
-            parsed.scheme,
-            parsed.netloc,
-            parsed.path,
-            parsed.params,
-            new_query,
-            ''  # Remove fragment
-        ))
+        normalized = urlunparse(
+            (
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                parsed.params,
+                new_query,
+                "",  # Remove fragment
+            )
+        )
 
         return normalized

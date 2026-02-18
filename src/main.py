@@ -3,8 +3,9 @@
 ElvAgent - AI Newsletter Agent
 Main entry point for the application.
 """
-import asyncio
+
 import argparse
+import asyncio
 import sys
 from pathlib import Path
 
@@ -12,34 +13,123 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.config.settings import settings
-from src.utils.logger import configure_logging, get_logger
+from src.core import ContentPipeline, Orchestrator, StateManager
+from src.publishing.discord_publisher import DiscordPublisher
+from src.publishing.markdown_publisher import MarkdownPublisher
+from src.publishing.telegram_publisher import TelegramPublisher
+from src.publishing.twitter_publisher import TwitterPublisher
+from src.research.arxiv_researcher import ArXivResearcher
+from src.research.huggingface_researcher import HuggingFaceResearcher
+from src.research.reddit_researcher import RedditResearcher
+from src.research.techcrunch_researcher import TechCrunchResearcher
+from src.utils.logger import configure_logging
 
 
 async def run_test_cycle():
     """Run a single test cycle without publishing."""
     logger.info("test_cycle_start", mode="test")
 
-    # TODO: Implement test cycle
-    # 1. Research phase
-    # 2. Filter and rank
-    # 3. Generate newsletter (don't publish)
-    # 4. Display results
+    # Initialize database
+    state_manager = StateManager()
+    await state_manager.init_db()
 
-    logger.info("test_cycle_complete", mode="test")
+    # Initialize components
+    researchers = [
+        ArXivResearcher(max_items=5),
+        HuggingFaceResearcher(max_items=5),
+        RedditResearcher(max_items=5),
+        TechCrunchResearcher(max_items=5),
+    ]
+    publishers = []  # Empty in test mode (no publishing)
+    pipeline = ContentPipeline(state_manager)
+
+    # Create orchestrator
+    orchestrator = Orchestrator(
+        state_manager=state_manager,
+        researchers=researchers,
+        publishers=publishers,
+        pipeline=pipeline,
+    )
+
+    # Run cycle
+    result = await orchestrator.run_cycle(mode="test")
+
+    # Display results
+    if result.newsletter:
+        logger.info(
+            "test_cycle_complete",
+            mode="test",
+            items_found=result.item_count,
+            items_filtered=result.filtered_count,
+            cost=f"${result.total_cost:.4f}",
+        )
+
+        # Display newsletter summary
+        print("\n" + "=" * 60)
+        print("NEWSLETTER PREVIEW")
+        print("=" * 60)
+        print(f"Date: {result.newsletter.date}")
+        print(f"Items: {result.newsletter.item_count}")
+        print(f"\nSummary:\n{result.newsletter.summary}")
+        print("\nItems:")
+        for i, item in enumerate(result.newsletter.items, 1):
+            print(f"\n{i}. {item.title}")
+            print(
+                f"   Source: {item.source} | Category: {item.category} | Score: {item.relevance_score}"
+            )
+            print(f"   URL: {item.url}")
+            print(f"   {item.summary[:100]}...")
+        print("\n" + "=" * 60)
+    else:
+        logger.info("test_cycle_complete", mode="test", result="No items found")
 
 
 async def run_production_cycle():
     """Run a full production cycle with publishing."""
     logger.info("production_cycle_start", mode="production")
 
-    # TODO: Implement full cycle
-    # 1. Research phase
-    # 2. Filter and rank
-    # 3. Generate newsletter
-    # 4. Publish to all platforms
-    # 5. Update database
+    # Validate production configuration
+    if not settings.validate_production_config():
+        logger.error("production_config_invalid", skipping_cycle=True)
+        return
 
-    logger.info("production_cycle_complete", mode="production")
+    # Initialize database
+    state_manager = StateManager()
+    await state_manager.init_db()
+
+    # Initialize components
+    researchers = [
+        ArXivResearcher(max_items=5),
+        HuggingFaceResearcher(max_items=5),
+        RedditResearcher(max_items=5),
+        TechCrunchResearcher(max_items=5),
+    ]
+    publishers = [TelegramPublisher(), TwitterPublisher(), DiscordPublisher(), MarkdownPublisher()]
+    pipeline = ContentPipeline(state_manager)
+
+    # Create orchestrator
+    orchestrator = Orchestrator(
+        state_manager=state_manager,
+        researchers=researchers,
+        publishers=publishers,
+        pipeline=pipeline,
+    )
+
+    # Run cycle
+    result = await orchestrator.run_cycle(mode="production")
+
+    # Log results
+    if result.success:
+        logger.info(
+            "production_cycle_complete",
+            mode="production",
+            items_found=result.item_count,
+            items_filtered=result.filtered_count,
+            platforms_published=result.platforms_published,
+            cost=f"${result.total_cost:.4f}",
+        )
+    else:
+        logger.error("production_cycle_failed", error=result.error)
 
 
 async def main():
@@ -49,13 +139,9 @@ async def main():
         "--mode",
         choices=["test", "production"],
         default="test",
-        help="Run mode: test (no publishing) or production (full cycle)"
+        help="Run mode: test (no publishing) or production (full cycle)",
     )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -65,15 +151,10 @@ async def main():
     logger = configure_logging(
         log_level=log_level,
         log_file=settings.logs_dir / "stdout.log" if args.mode == "production" else None,
-        pretty_console=True
+        pretty_console=True,
     )
 
-    logger.info(
-        "elvagent_starting",
-        mode=args.mode,
-        verbose=args.verbose,
-        version="0.1.0"
-    )
+    logger.info("elvagent_starting", mode=args.mode, verbose=args.verbose, version="0.1.0")
 
     # Ensure directories exist
     settings.ensure_directories()

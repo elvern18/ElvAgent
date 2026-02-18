@@ -4,8 +4,8 @@ Test script to verify foundation components work correctly.
 Tests database, logging, researcher, and configuration.
 """
 import asyncio
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Set minimal environment for testing
@@ -18,8 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.config.settings import settings
 from src.core.state_manager import StateManager
 from src.research.arxiv_researcher import ArXivResearcher
-from src.utils.logger import configure_logging, get_logger
 from src.utils.cost_tracker import cost_tracker
+from src.utils.logger import configure_logging, get_logger
 
 
 async def test_database():
@@ -84,7 +84,7 @@ async def test_researcher():
             print(f"    Authors: {', '.join(item.metadata.get('authors', [])[:2])}")
 
     except Exception as e:
-        print(f"⚠ Research failed (this is okay if offline or network issues)")
+        print("⚠ Research failed (this is okay if offline or network issues)")
         print(f"  Error: {type(e).__name__}: {str(e)[:100]}")
         print("  → This doesn't affect core functionality tests")
 

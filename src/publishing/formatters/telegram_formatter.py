@@ -2,9 +2,9 @@
 Telegram formatter for converting newsletters to Telegram messages.
 Uses Telegram's markdown formatting.
 """
-from typing import List
-from src.models.newsletter import Newsletter
+
 from src.models.enhanced_newsletter import CategoryMessage
+from src.models.newsletter import Newsletter
 from src.publishing.formatters.base_formatter import BaseFormatter
 
 
@@ -18,14 +18,14 @@ class TelegramFormatter(BaseFormatter):
         "funding": "💰",
         "news": "📰",
         "breakthrough": "⚡",
-        "regulation": "⚖️"
+        "regulation": "⚖️",
     }
 
     def __init__(self):
         """Initialize Telegram formatter."""
         super().__init__(platform_name="telegram")
 
-    def format(self, newsletter: Newsletter) -> List[str]:
+    def format(self, newsletter: Newsletter) -> list[str]:
         """
         Format newsletter as Telegram messages.
 
@@ -36,10 +36,22 @@ class TelegramFormatter(BaseFormatter):
             List of message strings (split if too long)
         """
         # Format date nicely
-        date_parts = newsletter.date.split('-')
+        date_parts = newsletter.date.split("-")
         if len(date_parts) == 4:
-            month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            month_names = [
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec",
+            ]
             month = month_names[int(date_parts[1]) - 1]
             day = date_parts[2]
             hour = date_parts[3]
@@ -70,7 +82,9 @@ class TelegramFormatter(BaseFormatter):
             parts.append(f"{i}\\. {emoji} *{self._escape_markdown(item.title)}*")
 
             # Score and category
-            parts.append(f"   ⭐ Score: {item.relevance_score}/10 \\| Category: {self._escape_markdown(item.category.upper())}")
+            parts.append(
+                f"   ⭐ Score: {item.relevance_score}/10 \\| Category: {self._escape_markdown(item.category.upper())}"
+            )
 
             # Summary
             parts.append(f"   {self._escape_markdown(item.summary)}")
@@ -101,14 +115,33 @@ class TelegramFormatter(BaseFormatter):
             Escaped text
         """
         # Characters that need escaping in MarkdownV2
-        special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+        special_chars = [
+            "_",
+            "*",
+            "[",
+            "]",
+            "(",
+            ")",
+            "~",
+            "`",
+            ">",
+            "#",
+            "+",
+            "-",
+            "=",
+            "|",
+            "{",
+            "}",
+            ".",
+            "!",
+        ]
 
         for char in special_chars:
-            text = text.replace(char, f'\\{char}')
+            text = text.replace(char, f"\\{char}")
 
         return text
 
-    def _split_message(self, message: str) -> List[str]:
+    def _split_message(self, message: str) -> list[str]:
         """
         Split message if it exceeds Telegram's limit.
 
@@ -122,7 +155,7 @@ class TelegramFormatter(BaseFormatter):
             return [message]
 
         # Split by double newlines (paragraphs)
-        paragraphs = message.split('\n\n')
+        paragraphs = message.split("\n\n")
 
         messages = []
         current = []
@@ -133,7 +166,7 @@ class TelegramFormatter(BaseFormatter):
 
             if current_length + para_length > self.MAX_MESSAGE_LENGTH:
                 # Save current message
-                messages.append('\n\n'.join(current))
+                messages.append("\n\n".join(current))
                 current = [para]
                 current_length = para_length
             else:
@@ -142,14 +175,11 @@ class TelegramFormatter(BaseFormatter):
 
         # Add remaining
         if current:
-            messages.append('\n\n'.join(current))
+            messages.append("\n\n".join(current))
 
         return messages
 
-    def format_enhanced(
-        self,
-        category_messages: List[CategoryMessage]
-    ) -> List[str]:
+    def format_enhanced(self, category_messages: list[CategoryMessage]) -> list[str]:
         """
         Format enhanced category messages for Telegram.
 

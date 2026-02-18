@@ -4,15 +4,15 @@ Unit tests for ContentEnhancer orchestrator.
 Tests sequential enhancement, retry logic, template fallbacks,
 category grouping, and metrics tracking.
 """
+
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
-from src.publishing.content_enhancer import ContentEnhancer
-from src.models.newsletter import NewsletterItem
+
 from src.models.enhanced_newsletter import (
     EnhancedNewsletterItem,
-    CategoryMessage,
-    EnhancementMetrics
+    EnhancementMetrics,
 )
+from src.models.newsletter import NewsletterItem
+from src.publishing.content_enhancer import ContentEnhancer
 
 
 @pytest.fixture
@@ -47,37 +47,34 @@ def mock_enhancers(monkeypatch):
 
     monkeypatch.setattr(
         "src.publishing.enhancers.headline_writer.HeadlineWriter.generate_headline",
-        mock_generate_headline
+        mock_generate_headline,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.takeaway_generator.TakeawayGenerator.generate_takeaway",
-        mock_generate_takeaway
+        mock_generate_takeaway,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.engagement_enricher.EngagementEnricher.enrich_metrics",
-        mock_enrich_metrics
+        mock_enrich_metrics,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.social_formatter.SocialFormatter.format_category",
-        mock_format_category
+        mock_format_category,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.social_formatter.SocialFormatter.format_category_simple",
-        mock_format_category_simple
+        mock_format_category_simple,
     )
 
 
 @pytest.mark.asyncio
 async def test_enhance_newsletter_all_ai_success(
-    content_enhancer,
-    sample_newsletter_items,
-    mock_enhancers
+    content_enhancer, sample_newsletter_items, mock_enhancers
 ):
     """Test successful enhancement of all items with AI."""
     # Run enhancement
     category_messages, metrics = await content_enhancer.enhance_newsletter(
-        items=sample_newsletter_items,
-        date="2026-02-17"
+        items=sample_newsletter_items, date="2026-02-17"
     )
 
     # Verify metrics
@@ -103,9 +100,7 @@ async def test_enhance_newsletter_all_ai_success(
 
 @pytest.mark.asyncio
 async def test_enhance_newsletter_partial_failure(
-    content_enhancer,
-    sample_newsletter_items,
-    monkeypatch
+    content_enhancer, sample_newsletter_items, monkeypatch
 ):
     """Test enhancement with some AI failures falling back to templates."""
 
@@ -130,25 +125,24 @@ async def test_enhance_newsletter_partial_failure(
 
     monkeypatch.setattr(
         "src.publishing.enhancers.headline_writer.HeadlineWriter.generate_headline",
-        mock_generate_headline_partial
+        mock_generate_headline_partial,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.takeaway_generator.TakeawayGenerator.generate_takeaway",
-        mock_generate_takeaway
+        mock_generate_takeaway,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.engagement_enricher.EngagementEnricher.enrich_metrics",
-        mock_enrich_metrics
+        mock_enrich_metrics,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.social_formatter.SocialFormatter.format_category",
-        mock_format_category
+        mock_format_category,
     )
 
     # Run enhancement
     category_messages, metrics = await content_enhancer.enhance_newsletter(
-        items=sample_newsletter_items,
-        date="2026-02-17"
+        items=sample_newsletter_items, date="2026-02-17"
     )
 
     # Verify partial success
@@ -161,9 +155,7 @@ async def test_enhance_newsletter_partial_failure(
 
 @pytest.mark.asyncio
 async def test_enhance_newsletter_all_template(
-    content_enhancer,
-    sample_newsletter_items,
-    monkeypatch
+    content_enhancer, sample_newsletter_items, monkeypatch
 ):
     """Test enhancement when all AI calls fail (all templates)."""
 
@@ -182,25 +174,24 @@ async def test_enhance_newsletter_all_template(
 
     monkeypatch.setattr(
         "src.publishing.enhancers.headline_writer.HeadlineWriter.generate_headline",
-        mock_generate_headline_fail
+        mock_generate_headline_fail,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.takeaway_generator.TakeawayGenerator.generate_takeaway",
-        mock_generate_takeaway_fail
+        mock_generate_takeaway_fail,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.engagement_enricher.EngagementEnricher.enrich_metrics",
-        mock_enrich_metrics
+        mock_enrich_metrics,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.social_formatter.SocialFormatter.format_category",
-        mock_format_category
+        mock_format_category,
     )
 
     # Run enhancement
     category_messages, metrics = await content_enhancer.enhance_newsletter(
-        items=sample_newsletter_items,
-        date="2026-02-17"
+        items=sample_newsletter_items, date="2026-02-17"
     )
 
     # Verify all templates used
@@ -215,9 +206,7 @@ async def test_enhance_newsletter_all_template(
 
 @pytest.mark.asyncio
 async def test_enhance_single_item_retry_logic(
-    content_enhancer,
-    sample_newsletter_items,
-    monkeypatch
+    content_enhancer, sample_newsletter_items, monkeypatch
 ):
     """Test retry logic for single item enhancement."""
 
@@ -228,7 +217,7 @@ async def test_enhance_single_item_retry_logic(
         attempts["headline"] += 1
         if attempts["headline"] < 3:
             raise Exception("Temporary error")
-        return (f"🔬 Success on attempt 3", 0.0025)
+        return ("🔬 Success on attempt 3", 0.0025)
 
     async def mock_generate_takeaway(self, item, headline, timeout=30):
         attempts["takeaway"] += 1
@@ -242,25 +231,24 @@ async def test_enhance_single_item_retry_logic(
 
     monkeypatch.setattr(
         "src.publishing.enhancers.headline_writer.HeadlineWriter.generate_headline",
-        mock_generate_headline_retry
+        mock_generate_headline_retry,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.takeaway_generator.TakeawayGenerator.generate_takeaway",
-        mock_generate_takeaway
+        mock_generate_takeaway,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.engagement_enricher.EngagementEnricher.enrich_metrics",
-        mock_enrich_metrics
+        mock_enrich_metrics,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.social_formatter.SocialFormatter.format_category",
-        mock_format_category
+        mock_format_category,
     )
 
     # Run enhancement (single item)
     category_messages, metrics = await content_enhancer.enhance_newsletter(
-        items=[sample_newsletter_items[0]],
-        date="2026-02-17"
+        items=[sample_newsletter_items[0]], date="2026-02-17"
     )
 
     # Verify retry happened and succeeded
@@ -272,8 +260,6 @@ async def test_enhance_single_item_retry_logic(
 def test_group_by_category(content_enhancer, sample_enhanced_items):
     """Test category grouping logic."""
     # Create more items in same categories to test limit
-    from src.models.newsletter import NewsletterItem
-    from src.models.enhanced_newsletter import EnhancedNewsletterItem
 
     extra_items = []
     for i in range(6):
@@ -283,7 +269,7 @@ def test_group_by_category(content_enhancer, sample_enhanced_items):
             summary="Summary",
             category="research",
             source="test",
-            relevance_score=10 - i  # Descending scores
+            relevance_score=10 - i,  # Descending scores
         )
         enhanced = EnhancedNewsletterItem(
             original_item=item,
@@ -291,7 +277,7 @@ def test_group_by_category(content_enhancer, sample_enhanced_items):
             takeaway="Takeaway",
             engagement_metrics={},
             enhancement_method="ai",
-            enhancement_cost=0.0
+            enhancement_cost=0.0,
         )
         extra_items.append(enhanced)
 
@@ -311,8 +297,6 @@ def test_group_by_category(content_enhancer, sample_enhanced_items):
 
 def test_group_by_category_limit_five(content_enhancer):
     """Test that max 5 items per category is enforced."""
-    from src.models.newsletter import NewsletterItem
-    from src.models.enhanced_newsletter import EnhancedNewsletterItem
 
     # Create 10 items in "research" category
     items = []
@@ -323,7 +307,7 @@ def test_group_by_category_limit_five(content_enhancer):
             summary="Summary",
             category="research",
             source="test",
-            relevance_score=10 - i
+            relevance_score=10 - i,
         )
         enhanced = EnhancedNewsletterItem(
             original_item=item,
@@ -331,7 +315,7 @@ def test_group_by_category_limit_five(content_enhancer):
             takeaway="Takeaway",
             engagement_metrics={},
             enhancement_method="ai",
-            enhancement_cost=0.0
+            enhancement_cost=0.0,
         )
         items.append(enhanced)
 
@@ -347,11 +331,7 @@ def test_group_by_category_limit_five(content_enhancer):
 
 
 @pytest.mark.asyncio
-async def test_format_category_ai_success(
-    content_enhancer,
-    sample_enhanced_items,
-    monkeypatch
-):
+async def test_format_category_ai_success(content_enhancer, sample_enhanced_items, monkeypatch):
     """Test category formatting with AI."""
 
     # Mock SocialFormatter
@@ -360,16 +340,13 @@ async def test_format_category_ai_success(
 
     monkeypatch.setattr(
         "src.publishing.enhancers.social_formatter.SocialFormatter.format_category",
-        mock_format_category
+        mock_format_category,
     )
 
     # Format category
     metrics = EnhancementMetrics()
     msg = await content_enhancer._format_category_message(
-        category="research",
-        items=[sample_enhanced_items[0]],
-        date="2026-02-17",
-        metrics=metrics
+        category="research", items=[sample_enhanced_items[0]], date="2026-02-17", metrics=metrics
     )
 
     # Verify
@@ -380,11 +357,7 @@ async def test_format_category_ai_success(
 
 
 @pytest.mark.asyncio
-async def test_format_category_fallback(
-    content_enhancer,
-    sample_enhanced_items,
-    monkeypatch
-):
+async def test_format_category_fallback(content_enhancer, sample_enhanced_items, monkeypatch):
     """Test category formatting with simple fallback."""
 
     # Mock SocialFormatter to fail
@@ -396,20 +369,17 @@ async def test_format_category_fallback(
 
     monkeypatch.setattr(
         "src.publishing.enhancers.social_formatter.SocialFormatter.format_category",
-        mock_format_category_fail
+        mock_format_category_fail,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.social_formatter.SocialFormatter.format_category_simple",
-        mock_format_category_simple
+        mock_format_category_simple,
     )
 
     # Format category
     metrics = EnhancementMetrics()
     msg = await content_enhancer._format_category_message(
-        category="research",
-        items=[sample_enhanced_items[0]],
-        date="2026-02-17",
-        metrics=metrics
+        category="research", items=[sample_enhanced_items[0]], date="2026-02-17", metrics=metrics
     )
 
     # Verify fallback used
@@ -420,11 +390,7 @@ async def test_format_category_fallback(
 def test_enhancement_metrics_tracking():
     """Test EnhancementMetrics calculations."""
     metrics = EnhancementMetrics(
-        total_items=10,
-        ai_enhanced=7,
-        template_fallback=3,
-        total_cost=0.15,
-        total_time_seconds=45.5
+        total_items=10, ai_enhanced=7, template_fallback=3, total_cost=0.15, total_time_seconds=45.5
     )
 
     # Test success rate
@@ -448,8 +414,7 @@ async def test_empty_newsletter(content_enhancer, mock_enhancers):
 
     # Run with empty list
     category_messages, metrics = await content_enhancer.enhance_newsletter(
-        items=[],
-        date="2026-02-17"
+        items=[], date="2026-02-17"
     )
 
     # Verify

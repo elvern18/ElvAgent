@@ -2,8 +2,11 @@
 Base publisher class that all platform publishers inherit from.
 Defines the interface for content publishing operations.
 """
+
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
+from typing import Any
+
+from src.models.newsletter import Newsletter
 from src.utils.logger import get_logger
 from src.utils.rate_limiter import rate_limiter
 
@@ -15,9 +18,9 @@ class PublishResult:
         self,
         platform: str,
         success: bool,
-        message: Optional[str] = None,
-        error: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        message: str | None = None,
+        error: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         """
         Initialize publish result.
@@ -35,14 +38,14 @@ class PublishResult:
         self.error = error
         self.metadata = metadata or {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         return {
             "platform": self.platform,
             "success": self.success,
             "message": self.message,
             "error": self.error,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -68,12 +71,12 @@ class BasePublisher(ABC):
         self.logger = get_logger(f"publisher.{platform_name}")
 
     @abstractmethod
-    async def format_content(self, newsletter: Dict[str, Any]) -> Any:
+    async def format_content(self, newsletter: Newsletter) -> Any:
         """
         Format newsletter content for this platform.
 
         Args:
-            newsletter: Newsletter data dictionary
+            newsletter: Newsletter object to format
 
         Returns:
             Platform-specific formatted content
@@ -93,17 +96,20 @@ class BasePublisher(ABC):
         """
         pass
 
-    async def publish_newsletter(self, newsletter: Dict[str, Any]) -> PublishResult:
+    async def publish_newsletter(self, newsletter: Newsletter | dict[str, Any]) -> PublishResult:
         """
         Main publishing method.
         Formats content and publishes with rate limiting.
 
         Args:
-            newsletter: Newsletter data dictionary
+            newsletter: Newsletter object or dictionary (for backward compatibility)
 
         Returns:
             PublishResult
         """
+        # Convert dict to Newsletter object if needed
+        if isinstance(newsletter, dict):
+            newsletter = Newsletter.from_dict(newsletter)
         self.logger.info("starting_publish", platform=self.platform_name)
 
         try:
@@ -118,16 +124,10 @@ class BasePublisher(ABC):
 
             if result.success:
                 self.logger.info(
-                    "publish_success",
-                    platform=self.platform_name,
-                    message=result.message
+                    "publish_success", platform=self.platform_name, message=result.message
                 )
             else:
-                self.logger.error(
-                    "publish_failed",
-                    platform=self.platform_name,
-                    error=result.error
-                )
+                self.logger.error("publish_failed", platform=self.platform_name, error=result.error)
 
             return result
 
@@ -136,14 +136,10 @@ class BasePublisher(ABC):
                 "publish_error",
                 platform=self.platform_name,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
 
-            return PublishResult(
-                platform=self.platform_name,
-                success=False,
-                error=str(e)
-            )
+            return PublishResult(platform=self.platform_name, success=False, error=str(e))
 
     def validate_credentials(self) -> bool:
         """
@@ -173,12 +169,7 @@ class BasePublisher(ABC):
         truncate_at = max_length - len(suffix)
         return text[:truncate_at].rstrip() + suffix
 
-    def split_into_chunks(
-        self,
-        text: str,
-        chunk_size: int,
-        separator: str = "\n\n"
-    ) -> List[str]:
+    def split_into_chunks(self, text: str, chunk_size: int, separator: str = "\n\n") -> list[str]:
         """
         Split text into chunks for platforms with character limits.
 

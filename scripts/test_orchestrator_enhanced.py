@@ -12,14 +12,15 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 import asyncio
-from src.core.orchestrator import Orchestrator
+
+from src.config.settings import settings
 from src.core.content_pipeline import ContentPipeline
+from src.core.orchestrator import Orchestrator
 from src.core.state_manager import StateManager
+from src.publishing.markdown_publisher import MarkdownPublisher
+from src.publishing.telegram_publisher import TelegramPublisher
 from src.research.arxiv_researcher import ArXivResearcher
 from src.research.huggingface_researcher import HuggingFaceResearcher
-from src.publishing.telegram_publisher import TelegramPublisher
-from src.publishing.markdown_publisher import MarkdownPublisher
-from src.config.settings import settings
 from src.utils.logger import get_logger
 
 logger = get_logger("test.orchestrator_enhanced")

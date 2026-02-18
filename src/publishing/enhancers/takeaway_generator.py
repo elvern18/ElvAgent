@@ -2,8 +2,9 @@
 AI-powered "Why it matters" insight generation.
 Creates concise, relatable takeaways for each news item.
 """
+
 from anthropic import AsyncAnthropic
-from typing import Optional
+
 from src.config.settings import settings
 from src.models.newsletter import NewsletterItem
 from src.utils.logger import get_logger
@@ -68,10 +69,7 @@ Return ONLY the formatted takeaway starting with "💡 Why it matters:". No quot
         self.model = "claude-haiku-4-5-20251001"
 
     async def generate_takeaway(
-        self,
-        item: NewsletterItem,
-        headline: str,
-        timeout: int = 30
+        self, item: NewsletterItem, headline: str, timeout: int = 30
     ) -> tuple[str, float]:
         """
         Generate "why it matters" takeaway.
@@ -91,14 +89,10 @@ Return ONLY the formatted takeaway starting with "💡 Why it matters:". No quot
         prompt = self.USER_PROMPT_TEMPLATE.format(
             headline=headline,
             summary=item.summary[:200],  # Truncate long summaries
-            category=item.category
+            category=item.category,
         )
 
-        logger.debug(
-            "generating_takeaway",
-            headline=headline[:50],
-            category=item.category
-        )
+        logger.debug("generating_takeaway", headline=headline[:50], category=item.category)
 
         try:
             # Call Claude API
@@ -106,11 +100,8 @@ Return ONLY the formatted takeaway starting with "💡 Why it matters:". No quot
                 model=self.model,
                 max_tokens=60,
                 system=self.SYSTEM_PROMPT,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }],
-                timeout=timeout
+                messages=[{"role": "user", "content": prompt}],
+                timeout=timeout,
             )
 
             # Extract takeaway
@@ -121,18 +112,10 @@ Return ONLY the formatted takeaway starting with "💡 Why it matters:". No quot
             output_tokens = response.usage.output_tokens
             cost = (input_tokens * 0.00025 / 1000) + (output_tokens * 0.00125 / 1000)
 
-            logger.debug(
-                "takeaway_generated",
-                takeaway=takeaway[:50],
-                cost=f"${cost:.6f}"
-            )
+            logger.debug("takeaway_generated", takeaway=takeaway[:50], cost=f"${cost:.6f}")
 
             return takeaway, cost
 
         except Exception as e:
-            logger.error(
-                "takeaway_generation_failed",
-                error=str(e),
-                headline=headline[:50]
-            )
+            logger.error("takeaway_generation_failed", error=str(e), headline=headline[:50])
             raise

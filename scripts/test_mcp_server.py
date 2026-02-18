@@ -3,8 +3,8 @@
 Test script to verify MCP server can be initialized and queried.
 """
 import asyncio
-import sys
 import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -32,7 +32,7 @@ async def test_mcp_server():
         # Initialize server
         print("\n=== Initializing MCP Server ===")
         server = DatabaseServer(db_path=temp_db_path)
-        print(f"✓ Server created")
+        print("✓ Server created")
         print(f"  Database path: {server.db_path}")
         print(f"  State manager: {server.state_manager}")
 

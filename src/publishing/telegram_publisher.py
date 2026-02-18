@@ -2,15 +2,16 @@
 Telegram publisher for posting newsletters to Telegram channels/groups.
 Uses Telegram Bot API.
 """
-from typing import List
+
 from telegram import Bot
 from telegram.constants import ParseMode
 from telegram.error import TelegramError
+
+from src.config.settings import settings
+from src.models.enhanced_newsletter import CategoryMessage
+from src.models.newsletter import Newsletter
 from src.publishing.base import BasePublisher, PublishResult
 from src.publishing.formatters.telegram_formatter import TelegramFormatter
-from src.models.newsletter import Newsletter
-from src.models.enhanced_newsletter import CategoryMessage
-from src.config.settings import settings
 
 
 class TelegramPublisher(BasePublisher):
@@ -30,10 +31,7 @@ class TelegramPublisher(BasePublisher):
                 self.bot = Bot(token=self.bot_token)
                 self.logger.info("telegram_bot_initialized")
             except Exception as e:
-                self.logger.error(
-                    "telegram_bot_init_failed",
-                    error=str(e)
-                )
+                self.logger.error("telegram_bot_init_failed", error=str(e))
 
     def validate_credentials(self) -> bool:
         """
@@ -44,7 +42,7 @@ class TelegramPublisher(BasePublisher):
         """
         return bool(self.bot_token and self.chat_id)
 
-    async def format_content(self, newsletter: Newsletter) -> List[str]:
+    async def format_content(self, newsletter: Newsletter) -> list[str]:
         """
         Format newsletter as Telegram messages.
 
@@ -56,7 +54,7 @@ class TelegramPublisher(BasePublisher):
         """
         return self.formatter.format(newsletter)
 
-    async def publish(self, content: List[str]) -> PublishResult:
+    async def publish(self, content: list[str]) -> PublishResult:
         """
         Post messages to Telegram.
 
@@ -70,14 +68,12 @@ class TelegramPublisher(BasePublisher):
             return PublishResult(
                 platform=self.platform_name,
                 success=False,
-                error="Telegram credentials not configured"
+                error="Telegram credentials not configured",
             )
 
         if not self.bot:
             return PublishResult(
-                platform=self.platform_name,
-                success=False,
-                error="Telegram bot not initialized"
+                platform=self.platform_name, success=False, error="Telegram bot not initialized"
             )
 
         try:
@@ -89,29 +85,24 @@ class TelegramPublisher(BasePublisher):
                     "sending_message",
                     message_number=i + 1,
                     total_messages=len(content),
-                    length=len(message_text)
+                    length=len(message_text),
                 )
 
-                # Send message with MarkdownV2 formatting
+                # Send message with Markdown formatting
                 message = await self.bot.send_message(
                     chat_id=self.chat_id,
                     text=message_text,
-                    parse_mode=ParseMode.MARKDOWN_V2,
-                    disable_web_page_preview=False
+                    parse_mode=ParseMode.MARKDOWN,
+                    disable_web_page_preview=False,
                 )
 
                 message_ids.append(message.message_id)
 
                 self.logger.info(
-                    "message_sent",
-                    message_number=i + 1,
-                    message_id=message.message_id
+                    "message_sent", message_number=i + 1, message_id=message.message_id
                 )
 
-            self.logger.info(
-                "messages_posted",
-                message_count=len(message_ids)
-            )
+            self.logger.info("messages_posted", message_count=len(message_ids))
 
             return PublishResult(
                 platform=self.platform_name,
@@ -120,32 +111,21 @@ class TelegramPublisher(BasePublisher):
                 metadata={
                     "message_count": len(message_ids),
                     "message_ids": message_ids,
-                    "chat_id": self.chat_id
-                }
+                    "chat_id": self.chat_id,
+                },
             )
 
         except TelegramError as e:
             error_msg = f"Telegram API error: {str(e)}"
             self.logger.error("telegram_api_error", error=error_msg)
-            return PublishResult(
-                platform=self.platform_name,
-                success=False,
-                error=error_msg
-            )
+            return PublishResult(platform=self.platform_name, success=False, error=error_msg)
 
         except Exception as e:
             error_msg = f"Unexpected error: {str(e)}"
             self.logger.error("telegram_publish_failed", error=error_msg)
-            return PublishResult(
-                platform=self.platform_name,
-                success=False,
-                error=error_msg
-            )
+            return PublishResult(platform=self.platform_name, success=False, error=error_msg)
 
-    async def publish_enhanced(
-        self,
-        category_messages: List[CategoryMessage]
-    ) -> PublishResult:
+    async def publish_enhanced(self, category_messages: list[CategoryMessage]) -> PublishResult:
         """
         Publish enhanced category messages to Telegram.
 

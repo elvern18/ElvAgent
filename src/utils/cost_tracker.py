@@ -2,8 +2,9 @@
 Cost tracking for API usage across different services.
 Tracks token usage and estimates costs for budgeting.
 """
+
 from datetime import date
-from typing import Dict, Optional
+
 from src.config.constants import MODEL_COSTS
 from src.utils.logger import get_logger
 
@@ -15,9 +16,9 @@ class CostTracker:
 
     def __init__(self):
         """Initialize cost tracker."""
-        self.daily_costs: Dict[str, float] = {}
-        self.daily_requests: Dict[str, int] = {}
-        self.daily_tokens: Dict[str, int] = {}
+        self.daily_costs: dict[str, float] = {}
+        self.daily_requests: dict[str, int] = {}
+        self.daily_tokens: dict[str, int] = {}
 
     def estimate_cost(
         self,
@@ -25,7 +26,7 @@ class CostTracker:
         model: str,
         input_tokens: int = 0,
         output_tokens: int = 0,
-        image_count: int = 0
+        image_count: int = 0,
     ) -> float:
         """
         Estimate cost for an API call.
@@ -41,11 +42,7 @@ class CostTracker:
             Estimated cost in USD
         """
         if model not in MODEL_COSTS:
-            logger.warning(
-                "unknown_model_cost",
-                api_name=api_name,
-                model=model
-            )
+            logger.warning("unknown_model_cost", api_name=api_name, model=model)
             return 0.0
 
         cost_config = MODEL_COSTS[model]
@@ -68,8 +65,8 @@ class CostTracker:
         input_tokens: int = 0,
         output_tokens: int = 0,
         image_count: int = 0,
-        request_count: int = 1
-    ) -> Dict[str, float]:
+        request_count: int = 1,
+    ) -> dict[str, float]:
         """
         Track API usage and calculate cost.
 
@@ -89,7 +86,7 @@ class CostTracker:
             model=model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            image_count=image_count
+            image_count=image_count,
         )
 
         # Track daily totals
@@ -108,17 +105,17 @@ class CostTracker:
             cost=f"${cost:.4f}",
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            total_daily_cost=f"${self.daily_costs[key]:.4f}"
+            total_daily_cost=f"${self.daily_costs[key]:.4f}",
         )
 
         return {
             "cost": cost,
             "daily_cost": self.daily_costs[key],
             "daily_requests": self.daily_requests[key],
-            "daily_tokens": self.daily_tokens[key]
+            "daily_tokens": self.daily_tokens[key],
         }
 
-    def get_daily_total(self, target_date: Optional[str] = None) -> float:
+    def get_daily_total(self, target_date: str | None = None) -> float:
         """
         Get total cost for a specific date.
 
@@ -138,7 +135,7 @@ class CostTracker:
 
         return total
 
-    def get_metrics(self, target_date: Optional[str] = None) -> Dict[str, Dict]:
+    def get_metrics(self, target_date: str | None = None) -> dict[str, dict]:
         """
         Get detailed metrics for a specific date.
 
@@ -158,7 +155,7 @@ class CostTracker:
                 metrics[api_name] = {
                     "cost": self.daily_costs[key],
                     "requests": self.daily_requests.get(key, 0),
-                    "tokens": self.daily_tokens.get(key, 0)
+                    "tokens": self.daily_tokens.get(key, 0),
                 }
 
         return metrics
@@ -178,9 +175,7 @@ class CostTracker:
 
         if not within_budget:
             logger.warning(
-                "budget_exceeded",
-                current_cost=f"${total:.2f}",
-                max_cost=f"${max_daily_cost:.2f}"
+                "budget_exceeded", current_cost=f"${total:.2f}", max_cost=f"${max_daily_cost:.2f}"
             )
 
         return within_budget

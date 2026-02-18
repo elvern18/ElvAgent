@@ -3,11 +3,14 @@ Integration tests for enhanced content publishing.
 
 Tests the full flow: NewsletterItems → ContentEnhancer → TelegramPublisher
 """
+
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
+
+from src.models.newsletter import NewsletterItem
 from src.publishing.content_enhancer import ContentEnhancer
 from src.publishing.telegram_publisher import TelegramPublisher
-from src.models.newsletter import NewsletterItem
 
 
 @pytest.fixture
@@ -34,15 +37,15 @@ def mock_anthropic_api(monkeypatch):
 
     monkeypatch.setattr(
         "src.publishing.enhancers.headline_writer.HeadlineWriter.generate_headline",
-        mock_generate_headline
+        mock_generate_headline,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.takeaway_generator.TakeawayGenerator.generate_takeaway",
-        mock_generate_takeaway
+        mock_generate_takeaway,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.social_formatter.SocialFormatter.format_category",
-        mock_format_category
+        mock_format_category,
     )
 
 
@@ -79,9 +82,7 @@ def mock_telegram_bot(monkeypatch):
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_end_to_end_enhancement_and_publish(
-    sample_newsletter_items,
-    mock_anthropic_api,
-    mock_telegram_bot
+    sample_newsletter_items, mock_anthropic_api, mock_telegram_bot
 ):
     """Test full flow: NewsletterItems → Enhanced → Published to Telegram."""
 
@@ -90,8 +91,7 @@ async def test_end_to_end_enhancement_and_publish(
 
     # Step 2: Enhance newsletter items
     category_messages, metrics = await enhancer.enhance_newsletter(
-        items=sample_newsletter_items,
-        date="2026-02-17"
+        items=sample_newsletter_items, date="2026-02-17"
     )
 
     # Verify enhancement results
@@ -124,9 +124,7 @@ async def test_end_to_end_enhancement_and_publish(
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_enhancement_with_failures_still_publishes(
-    sample_newsletter_items,
-    mock_telegram_bot,
-    monkeypatch
+    sample_newsletter_items, mock_telegram_bot, monkeypatch
 ):
     """Test that partial AI failures still result in successful publishing."""
 
@@ -148,22 +146,21 @@ async def test_enhancement_with_failures_still_publishes(
 
     monkeypatch.setattr(
         "src.publishing.enhancers.headline_writer.HeadlineWriter.generate_headline",
-        mock_generate_headline_partial
+        mock_generate_headline_partial,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.takeaway_generator.TakeawayGenerator.generate_takeaway",
-        mock_generate_takeaway
+        mock_generate_takeaway,
     )
     monkeypatch.setattr(
         "src.publishing.enhancers.social_formatter.SocialFormatter.format_category",
-        mock_format_category
+        mock_format_category,
     )
 
     # Step 1: Enhance (some will fail)
     enhancer = ContentEnhancer()
     category_messages, metrics = await enhancer.enhance_newsletter(
-        items=sample_newsletter_items,
-        date="2026-02-17"
+        items=sample_newsletter_items, date="2026-02-17"
     )
 
     # Verify partial success (some items may use templates)
@@ -183,17 +180,14 @@ async def test_enhancement_with_failures_still_publishes(
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_enhancement_cost_tracking(
-    sample_newsletter_items,
-    mock_anthropic_api,
-    mock_telegram_bot
+    sample_newsletter_items, mock_anthropic_api, mock_telegram_bot
 ):
     """Test that enhancement costs are accurately tracked."""
 
     # Enhance
     enhancer = ContentEnhancer()
     category_messages, metrics = await enhancer.enhance_newsletter(
-        items=sample_newsletter_items,
-        date="2026-02-17"
+        items=sample_newsletter_items, date="2026-02-17"
     )
 
     # Verify cost tracking
@@ -210,10 +204,7 @@ async def test_enhancement_cost_tracking(
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_multiple_categories_published_separately(
-    mock_anthropic_api,
-    mock_telegram_bot
-):
+async def test_multiple_categories_published_separately(mock_anthropic_api, mock_telegram_bot):
     """Test that items from multiple categories are grouped and published."""
 
     # Create items from different categories
@@ -224,7 +215,7 @@ async def test_multiple_categories_published_separately(
             summary="Research summary",
             category="research",
             source="arxiv",
-            relevance_score=9
+            relevance_score=9,
         ),
         NewsletterItem(
             title="Research Item 2",
@@ -232,7 +223,7 @@ async def test_multiple_categories_published_separately(
             summary="Another research summary",
             category="research",
             source="arxiv",
-            relevance_score=8
+            relevance_score=8,
         ),
         NewsletterItem(
             title="Funding Item 1",
@@ -240,7 +231,7 @@ async def test_multiple_categories_published_separately(
             summary="Funding summary",
             category="funding",
             source="techcrunch",
-            relevance_score=7
+            relevance_score=7,
         ),
         NewsletterItem(
             title="Product Item 1",
@@ -248,16 +239,13 @@ async def test_multiple_categories_published_separately(
             summary="Product summary",
             category="product",
             source="news",
-            relevance_score=10
+            relevance_score=10,
         ),
     ]
 
     # Enhance
     enhancer = ContentEnhancer()
-    category_messages, metrics = await enhancer.enhance_newsletter(
-        items=items,
-        date="2026-02-17"
-    )
+    category_messages, metrics = await enhancer.enhance_newsletter(items=items, date="2026-02-17")
 
     # Verify multiple categories
     assert len(category_messages) == 3  # research, funding, product
@@ -286,18 +274,12 @@ async def test_multiple_categories_published_separately(
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_empty_items_handled_gracefully(
-    mock_anthropic_api,
-    mock_telegram_bot
-):
+async def test_empty_items_handled_gracefully(mock_anthropic_api, mock_telegram_bot):
     """Test that empty item list is handled gracefully."""
 
     # Enhance with empty list
     enhancer = ContentEnhancer()
-    category_messages, metrics = await enhancer.enhance_newsletter(
-        items=[],
-        date="2026-02-17"
-    )
+    category_messages, metrics = await enhancer.enhance_newsletter(items=[], date="2026-02-17")
 
     # Verify empty results
     assert len(category_messages) == 0
