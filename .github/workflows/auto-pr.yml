@@ -1,0 +1,69 @@
+name: Auto PR
+
+on:
+  push:
+    branches:
+      - "agent-*"
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  auto-pr:
+    name: Create or update PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for existing PR
+        id: check-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=$(gh pr list --head "${{ github.ref_name }}" --base main --json number --jq '.[0].number // empty')
+          echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Create PR if none exists
+        if: steps.check-pr.outputs.pr_number == ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          TITLE="feat(${BRANCH}): automated changes from ${BRANCH}"
+          BODY="## Summary
+
+          Automated PR from branch \`${BRANCH}\`.
+
+          ## Changes
+
+          See commit history for details. Status and context available in \`docs/STATUS.md\`.
+
+          ## Test plan
+
+          - [ ] CI lint checks pass
+          - [ ] Unit tests pass (Python 3.10 + 3.11)
+          - [ ] Integration tests pass
+
+          ---
+          🤖 Auto-created by [ElvAgent CI](https://github.com/${{ github.repository }}/actions)"
+
+          PR_URL=$(gh pr create \
+            --head "${BRANCH}" \
+            --base main \
+            --title "${TITLE}" \
+            --body "${BODY}" \
+            --draft)
+
+          echo "Created PR: ${PR_URL}"
+
+          # Enable auto-merge
+          gh pr merge --auto --squash --delete-branch "${PR_URL}"
+          echo "Auto-merge enabled on: ${PR_URL}"
+
+      - name: Re-enable auto-merge on existing PR
+        if: steps.check-pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge --auto --squash --delete-branch "${{ steps.check-pr.outputs.pr_number }}" || true

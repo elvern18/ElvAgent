@@ -24,6 +24,37 @@ ElvAgent automatically:
 
 ## Quick Start
 
+### For Development
+
+**Quick Resume (Recommended):**
+```
+/session-start
+```
+This auto-loads all context and shows next steps.
+
+**Manual Resume:**
+1. **See current status:**
+   ```bash
+   cat docs/STATUS.md
+   ```
+
+2. **Resume from last session:**
+   ```bash
+   cat docs/logs/2026-02-17-session-1.md
+   ```
+
+3. **Activate virtual environment:**
+   ```bash
+   source .venv/bin/activate
+   ```
+
+4. **Test run:**
+   ```bash
+   python src/main.py --mode=test --verbose
+   ```
+
+### For Fresh Setup
+
 1. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
@@ -40,12 +71,7 @@ ElvAgent automatically:
    python -c "from src.core.state_manager import StateManager; StateManager().init_db()"
    ```
 
-4. **Test run:**
-   ```bash
-   python src/main.py --mode=test --verbose
-   ```
-
-5. **Install as service (Mac):**
+4. **Install as service (Mac):**
    ```bash
    ./scripts/setup_launchd.sh
    ```
@@ -78,13 +104,13 @@ Publish (5 platforms in parallel)
 Update State & Track Costs
 ```
 
-## Project Structure
+## Documentation
 
-See [CLAUDE.md](.claude/CLAUDE.md) for detailed architecture documentation.
-
-## Development Status
-
-See [STATUS.md](STATUS.md) for current progress.
+- **[Development Status](docs/STATUS.md)** - Current progress and next steps
+- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Complete file organization
+- **[Testing Guide](docs/TESTING_GUIDE.md)** - Testing best practices
+- **[Implementation Progress](docs/IMPLEMENTATION_PROGRESS.md)** - Detailed progress report
+- **[Developer Guide](.claude/CLAUDE.md)** - Development guidelines for contributors
 
 ## Learning Goals
 

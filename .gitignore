@@ -32,8 +32,9 @@ wheels/
 *.db-journal
 
 # Logs
-logs/
+/logs/
 *.log
+# Note: Session logs in docs/logs/ are tracked for documentation
 
 # Media files
 data/images/*
