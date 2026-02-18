@@ -4,7 +4,7 @@ Integration tests for enhanced content publishing.
 Tests the full flow: NewsletterItems → ContentEnhancer → TelegramPublisher
 """
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
@@ -75,6 +75,12 @@ def mock_telegram_bot(monkeypatch):
 
     # Patch where Bot is imported in telegram_publisher
     monkeypatch.setattr("src.publishing.telegram_publisher.Bot", MockBot)
+
+    # Patch credentials so validate_credentials() returns True
+    monkeypatch.setattr(
+        "src.publishing.telegram_publisher.settings",
+        MagicMock(telegram_bot_token="fake-token", telegram_chat_id="-100123456"),
+    )
 
     return mock_bot_instance
 

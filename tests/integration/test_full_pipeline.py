@@ -14,6 +14,7 @@ from src.core.content_pipeline import ContentPipeline
 from src.core.orchestrator import Orchestrator
 from src.core.state_manager import StateManager
 from src.models.newsletter import Newsletter
+from src.publishing.base import PublishResult
 from src.publishing.markdown_publisher import MarkdownPublisher
 from src.research.arxiv_researcher import ArXivResearcher
 from src.research.base import ContentItem
@@ -324,13 +325,13 @@ class TestPartialFailures:
         success_publisher = MagicMock()
         success_publisher.platform_name = "markdown"
         success_publisher.publish_newsletter = AsyncMock(
-            return_value=MagicMock(platform="markdown", success=True, message="OK")
+            return_value=PublishResult(platform="markdown", success=True, message="OK")
         )
 
         fail_publisher = MagicMock()
         fail_publisher.platform_name = "discord"
         fail_publisher.publish_newsletter = AsyncMock(
-            return_value=MagicMock(platform="discord", success=False, error="Webhook error")
+            return_value=PublishResult(platform="discord", success=False, error="Webhook error")
         )
 
         # Create orchestrator
@@ -341,6 +342,7 @@ class TestPartialFailures:
             publishers=[success_publisher, fail_publisher],
             pipeline=pipeline,
         )
+        orchestrator.enhancer = None  # enhancement not under test here
 
         # Run cycle
         result = await orchestrator.run_cycle(mode="production")
