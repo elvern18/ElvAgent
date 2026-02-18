@@ -130,6 +130,8 @@ Claude Code autonomously chooses the appropriate execution mode. Users can overr
 
 **Examples:** New platform integration, pipeline redesign, multi-agent orchestration
 
+**Planning Code:** Ensure code is readable, maintainable and modularised. Use test-planner agent to plan on testing code. 
+
 ### Autonomous Execution
 
 Claude will:
