@@ -109,6 +109,23 @@ class StateManager:
                 )
             """)
 
+            # GitHub agent events table
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS github_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    pr_number INTEGER NOT NULL,
+                    head_sha TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    action_taken TEXT,
+                    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(pr_number, head_sha, event_type)
+                )
+            """)
+
+            await db.execute("""
+                CREATE INDEX IF NOT EXISTS idx_github_events_pr ON github_events(pr_number)
+            """)
+
             await db.commit()
 
         logger.info("database_initialized", db_path=str(self.db_path))
@@ -381,3 +398,89 @@ class StateManager:
         metrics["total_cost"] = total_cost
 
         return metrics
+
+    async def record_github_event(
+        self,
+        pr_number: int,
+        head_sha: str,
+        event_type: str,
+        action_taken: str,
+    ) -> None:
+        """
+        Record a processed GitHub PR event.
+
+        Args:
+            pr_number: Pull request number
+            head_sha: Head commit SHA at time of processing
+            event_type: Event type (e.g., 'needs_description', 'ci_failure', 'needs_review')
+            action_taken: Action that was taken (e.g., 'description_generated', 'ruff_fix_pushed')
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            try:
+                await db.execute(
+                    """
+                    INSERT INTO github_events (pr_number, head_sha, event_type, action_taken)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (pr_number, head_sha, event_type, action_taken),
+                )
+                await db.commit()
+                logger.debug(
+                    "github_event_recorded",
+                    pr_number=pr_number,
+                    event_type=event_type,
+                    action_taken=action_taken,
+                )
+            except aiosqlite.IntegrityError:
+                # Already recorded (UNIQUE constraint), ignore
+                pass
+
+    async def is_github_event_processed(
+        self,
+        pr_number: int,
+        head_sha: str,
+        event_type: str,
+    ) -> bool:
+        """
+        Check if a GitHub PR event has already been processed.
+
+        Args:
+            pr_number: Pull request number
+            head_sha: Head commit SHA
+            event_type: Event type to check
+
+        Returns:
+            True if already processed, False otherwise
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                """
+                SELECT 1 FROM github_events
+                WHERE pr_number = ? AND head_sha = ? AND event_type = ?
+                """,
+                (pr_number, head_sha, event_type),
+            )
+            result = await cursor.fetchone()
+        return result is not None
+
+    async def count_fix_attempts(self, pr_number: int) -> int:
+        """
+        Count the number of CI fix pushes for a given PR (circuit breaker).
+
+        Args:
+            pr_number: Pull request number
+
+        Returns:
+            Number of fix attempts (ruff_fix_pushed or ai_fix_pushed)
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                """
+                SELECT COUNT(*) FROM github_events
+                WHERE pr_number = ?
+                AND action_taken IN ('ruff_fix_pushed', 'ai_fix_pushed')
+                """,
+                (pr_number,),
+            )
+            result = await cursor.fetchone()
+        return result[0] if result else 0

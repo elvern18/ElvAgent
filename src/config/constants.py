@@ -22,7 +22,15 @@ RATE_LIMITS = {
     "discord": 30,
     "openai": 50,
     "anthropic": 50,
+    "github": 80,
 }
+
+# GitHub Agent
+GITHUB_RATE_LIMIT = 80  # req/min (5000/hr GitHub limit, use 80 for headroom)
+MAX_DIFF_CHARS = 8_000  # max file context chars sent to Claude
+MAX_LOG_CHARS = 4_000  # max CI log chars sent to Claude
+MAX_FIX_ATTEMPTS = 3  # circuit breaker: fix pushes per PR
+PR_DESCRIPTION_SENTINEL = "<!-- auto-generated -->"
 
 # Cache TTL (seconds)
 CACHE_TTL = 900  # 15 minutes

@@ -73,6 +73,17 @@ class Settings(BaseSettings):
         default=5, description="Maximum items per category in enhanced mode"
     )
 
+    # GitHub Agent
+    github_token: str | None = Field(None, description="GitHub PAT (repo + PR write scopes)")
+    github_repo: str = Field("elvern18/ElvAgent", description="owner/repo")
+    github_repo_path: Path = Field(
+        default_factory=lambda: Path("/home/elvern/ElvAgent"),
+        description="Local repo path for CIFixer",
+    )
+    github_poll_interval: int = Field(60, description="Seconds between poll cycles")
+    max_fix_attempts: int = Field(3, description="Circuit breaker: max CIFixer pushes per PR")
+    enable_github_agent: bool = Field(False, description="Enable GitHub monitoring agent")
+
     # Logging
     log_level: str = Field(default="INFO", description="Logging level")
 

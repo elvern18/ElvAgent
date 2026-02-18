@@ -132,16 +132,47 @@ async def run_production_cycle():
         logger.error("production_cycle_failed", error=result.error)
 
 
+async def run_github_monitor(max_cycles: int = 0):
+    """Run the GitHub PR monitoring agent.
+
+    Args:
+        max_cycles: Maximum poll cycles (0 = run forever)
+    """
+    from src.github.client import GitHubClient
+    from src.github.monitor import GitHubMonitor
+
+    if not settings.github_token:
+        logger.error("github_token_missing", hint="Set GITHUB_TOKEN in .env")
+        return
+
+    state_manager = StateManager()
+    await state_manager.init_db()
+
+    client = GitHubClient(token=settings.github_token, repo=settings.github_repo)
+    monitor = GitHubMonitor(state_manager=state_manager, github_client=client)
+
+    await monitor.run_forever(
+        interval_seconds=settings.github_poll_interval,
+        max_cycles=max_cycles,
+    )
+
+
 async def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="ElvAgent - AI Newsletter Agent")
     parser.add_argument(
         "--mode",
-        choices=["test", "production"],
+        choices=["test", "production", "github-monitor"],
         default="test",
-        help="Run mode: test (no publishing) or production (full cycle)",
+        help="Run mode: test (no publishing), production (full cycle), or github-monitor (PR agent)",
     )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
+    parser.add_argument(
+        "--cycles",
+        type=int,
+        default=0,
+        help="Max poll cycles for github-monitor (0 = run forever)",
+    )
 
     args = parser.parse_args()
 
@@ -162,6 +193,8 @@ async def main():
     try:
         if args.mode == "test":
             await run_test_cycle()
+        elif args.mode == "github-monitor":
+            await run_github_monitor(max_cycles=args.cycles)
         else:
             await run_production_cycle()
 
