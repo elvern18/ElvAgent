@@ -89,20 +89,23 @@ class TestDispatch:
         assert results[0].status == "done"
         assert "ElvAgent running" in results[0].reply
 
-    async def test_code_task_returns_phase_c_stub(self):
+    async def test_code_task_calls_code_handler(self):
         worker = _make_worker()
         task = _make_task("code", {"instruction": "fix the bug"})
-        results = await worker.act([task])
-        assert results[0].status == "done"
-        assert "Phase C" in results[0].reply
-        assert "fix the bug" in results[0].reply
+        expected = HandlerResult(task=task, status="done", reply="PR opened!")
 
-    async def test_shell_task_returns_phase_c_stub(self):
+        with patch("src.agents.task_worker.CodeHandler") as MockHandler:
+            MockHandler.return_value.handle = AsyncMock(return_value=expected)
+            results = await worker.act([task])
+
+        assert results == [expected]
+        MockHandler.return_value.handle.assert_awaited_once_with(task)
+
+    async def test_shell_task_returns_done(self):
         worker = _make_worker()
         task = _make_task("shell")
         results = await worker.act([task])
         assert results[0].status == "done"
-        assert "Phase C" in results[0].reply
 
     async def test_unknown_task_type_returns_failed(self):
         worker = _make_worker()

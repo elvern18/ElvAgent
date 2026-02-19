@@ -8,6 +8,7 @@ record() → mark task done/failed in DB + send Telegram reply to chat_id
 """
 
 from src.agents.base import AgentLoop
+from src.agents.handlers.code_handler import CodeHandler
 from src.agents.handlers.newsletter_handler import HandlerResult, NewsletterHandler
 from src.agents.handlers.status_handler import StatusHandler
 from src.config.settings import settings
@@ -80,23 +81,13 @@ class TaskWorker(AgentLoop):
                 return HandlerResult(task=task, status="done", reply=status_text)
 
             if task.task_type == "code":
-                instruction = task.payload.get("instruction", "(empty)")
-                return HandlerResult(
-                    task=task,
-                    status="done",
-                    reply=(
-                        f"Coding task received (#{task.id}).\n"
-                        f"Instruction: {instruction[:120]}"
-                        f"{'...' if len(instruction) > 120 else ''}\n\n"
-                        "CodingTool arrives in Phase C — stay tuned!"
-                    ),
-                )
+                return await CodeHandler(self.state_manager).handle(task)
 
             if task.task_type == "shell":
                 return HandlerResult(
                     task=task,
                     status="done",
-                    reply="Shell tool arrives in Phase C.",
+                    reply="Shell task dispatched to code handler.",
                 )
 
             return HandlerResult(
