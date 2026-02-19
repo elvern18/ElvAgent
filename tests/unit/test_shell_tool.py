@@ -149,6 +149,47 @@ class TestSuccessfulRun:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# truncated_str
+# ---------------------------------------------------------------------------
+
+
+class TestTruncatedStr:
+    def test_short_output_unchanged(self):
+        r = ShellResult(returncode=0, stdout="hello", stderr="")
+        assert r.truncated_str() == str(r)
+
+    def test_long_stdout_truncated(self):
+        from src.tools.shell_tool import _MAX_OUTPUT_CHARS
+
+        big = "x" * (_MAX_OUTPUT_CHARS + 100)
+        r = ShellResult(returncode=0, stdout=big, stderr="")
+        result = r.truncated_str()
+        assert len(result) < len(big)
+        assert "truncated" in result
+
+    def test_long_stderr_truncated(self):
+        from src.tools.shell_tool import _MAX_OUTPUT_CHARS
+
+        big = "e" * (_MAX_OUTPUT_CHARS + 100)
+        r = ShellResult(returncode=1, stdout="", stderr=big)
+        result = r.truncated_str()
+        assert "truncated" in result
+        assert "[stderr]" in result
+
+    def test_str_not_affected_by_truncated_str(self):
+        """__str__ is unchanged — it does not truncate."""
+        from src.tools.shell_tool import _MAX_OUTPUT_CHARS
+
+        big = "y" * (_MAX_OUTPUT_CHARS + 100)
+        r = ShellResult(returncode=0, stdout=big, stderr="")
+        assert len(str(r)) > _MAX_OUTPUT_CHARS  # full output in __str__
+
+    def test_empty_output_shows_exit_code(self):
+        r = ShellResult(returncode=7, stdout="", stderr="")
+        assert "7" in r.truncated_str()
+
+
 class TestTimeout:
     async def test_timeout_returns_failed_result(self):
         tool = ShellTool()

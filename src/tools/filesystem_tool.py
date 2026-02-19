@@ -13,6 +13,9 @@ from src.utils.logger import get_logger
 
 logger = get_logger("tool.filesystem")
 
+# Large files are truncated so they don't blow up LLM context windows.
+_MAX_READ_CHARS = 20_000
+
 
 def _resolve_and_guard(path: str | Path) -> Path:
     """Resolve path and verify it stays within pa_working_dir."""
@@ -29,13 +32,23 @@ class FilesystemTool:
     """Read/write/list operations guarded to pa_working_dir."""
 
     def read_file(self, path: str) -> str:
-        """Read and return the contents of a file as UTF-8 text."""
+        """Read and return the contents of a file as UTF-8 text.
+
+        Files larger than _MAX_READ_CHARS are truncated with a notice so the
+        LLM doesn't exhaust its context window on a single file read.
+        """
         resolved = _resolve_and_guard(path)
         if not resolved.exists():
             raise FileNotFoundError(f"File not found: {path!r}")
         if not resolved.is_file():
             raise IsADirectoryError(f"Path is a directory: {path!r}")
-        return resolved.read_text(encoding="utf-8")
+        content = resolved.read_text(encoding="utf-8")
+        if len(content) > _MAX_READ_CHARS:
+            return (
+                content[:_MAX_READ_CHARS] + f"\n...[truncated — {len(content):,} chars total,"
+                f" showing first {_MAX_READ_CHARS:,}]"
+            )
+        return content
 
     def write_file(self, path: str, content: str) -> str:
         """Write UTF-8 text to a file, creating parent directories as needed."""

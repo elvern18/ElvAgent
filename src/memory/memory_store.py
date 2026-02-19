@@ -21,23 +21,26 @@ class Message:
 
 class MemoryStore:
     """
-    Short-term per-chat conversation context with TTL expiry.
+    Per-chat conversation context, optionally with TTL expiry.
 
-    Used by TelegramAgent to store recent conversation turns per chat_id,
+    Used by TelegramAgent to store conversation turns per chat_id,
     and by TaskWorker to record assistant replies back into the same context.
+
+    By default (ttl_seconds=None) messages are kept until explicitly cleared
+    via clear(chat_id).  Pass a positive integer to enable time-based expiry.
     """
 
-    def __init__(self, ttl_seconds: int = 3600, max_messages: int = 20) -> None:
+    def __init__(self, ttl_seconds: int | None = None, max_messages: int = 50) -> None:
         self._ttl = ttl_seconds
         self._max = max_messages
         self._store: dict[int, list[Message]] = {}
 
     def add_message(self, chat_id: int, role: str, content: str) -> None:
-        """Append a message for chat_id, then prune expired and trim to max."""
+        """Append a message for chat_id, prune expired (if TTL set), then trim to max."""
         msgs = self._store.setdefault(chat_id, [])
         msgs.append(Message(role=role, content=content))
         now = time.time()
-        active = [m for m in msgs if now - m.ts < self._ttl]
+        active = self._active(chat_id, now)
         if len(active) > self._max:
             active = active[-self._max :]
         self._store[chat_id] = active
@@ -63,6 +66,11 @@ class MemoryStore:
         self._store.pop(chat_id, None)
 
     def _active(self, chat_id: int, now: float) -> list[Message]:
-        """Return non-expired messages for chat_id (does not mutate store)."""
+        """Return non-expired messages for chat_id (does not mutate store).
+
+        When ttl_seconds is None all stored messages are considered active.
+        """
         msgs = self._store.get(chat_id, [])
+        if self._ttl is None:
+            return list(msgs)
         return [m for m in msgs if now - m.ts < self._ttl]

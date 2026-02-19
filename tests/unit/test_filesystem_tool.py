@@ -205,6 +205,48 @@ class TestListDir:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Truncation
+# ---------------------------------------------------------------------------
+
+
+class TestReadFileTruncation:
+    def test_small_file_returned_in_full(self, tmp_path):
+        f = tmp_path / "small.txt"
+        f.write_text("x" * 100)
+        with patch("src.tools.filesystem_tool.settings") as m:
+            m.pa_working_dir = tmp_path
+            tool = FilesystemTool()
+            result = tool.read_file(str(f))
+        assert result == "x" * 100
+
+    def test_large_file_is_truncated(self, tmp_path):
+        from src.tools.filesystem_tool import _MAX_READ_CHARS
+
+        f = tmp_path / "big.txt"
+        content = "a" * (_MAX_READ_CHARS + 5000)
+        f.write_text(content)
+        with patch("src.tools.filesystem_tool.settings") as m:
+            m.pa_working_dir = tmp_path
+            tool = FilesystemTool()
+            result = tool.read_file(str(f))
+        assert len(result) < len(content)
+        assert "truncated" in result
+        assert result.startswith("a" * _MAX_READ_CHARS)
+
+    def test_truncation_notice_contains_total_char_count(self, tmp_path):
+        from src.tools.filesystem_tool import _MAX_READ_CHARS
+
+        f = tmp_path / "big.txt"
+        total = _MAX_READ_CHARS + 1000
+        f.write_text("b" * total)
+        with patch("src.tools.filesystem_tool.settings") as m:
+            m.pa_working_dir = tmp_path
+            tool = FilesystemTool()
+            result = tool.read_file(str(f))
+        assert str(total) in result or f"{total:,}" in result
+
+
 class TestExistsAndMakeDir:
     def test_exists_true_for_existing_file(self, tmp_path):
         f = tmp_path / "x.txt"

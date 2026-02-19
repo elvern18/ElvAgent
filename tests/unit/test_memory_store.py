@@ -14,7 +14,7 @@ from src.memory.memory_store import MemoryStore, Message
 # ---------------------------------------------------------------------------
 
 
-def _store(ttl: int = 3600, max_messages: int = 20) -> MemoryStore:
+def _store(ttl: int | None = 3600, max_messages: int = 20) -> MemoryStore:
     return MemoryStore(ttl_seconds=ttl, max_messages=max_messages)
 
 
@@ -188,6 +188,44 @@ class TestClear:
 # ---------------------------------------------------------------------------
 # TestChatIsolation
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# TestNullTTL (persistent context)
+# ---------------------------------------------------------------------------
+
+
+class TestNullTTL:
+    def test_default_ttl_is_none(self):
+        """Default MemoryStore keeps messages forever."""
+        store = MemoryStore()
+        assert store._ttl is None
+
+    def test_messages_never_expire_with_none_ttl(self):
+        store = MemoryStore(ttl_seconds=None)
+        with patch("time.time", return_value=0.0):
+            store.add_message(1, "user", "old message")
+        # Simulate a very long time passing
+        with patch("time.time", return_value=999_999.0):
+            msgs = store.get_context(1)
+        assert len(msgs) == 1
+        assert msgs[0].content == "old message"
+
+    def test_explicit_ttl_still_expires_as_before(self):
+        store = MemoryStore(ttl_seconds=100)
+        with patch("time.time", return_value=0.0):
+            store.add_message(1, "user", "will expire")
+        with patch("time.time", return_value=200.0):
+            msgs = store.get_context(1)
+        assert msgs == []
+
+    def test_max_messages_still_enforced_without_ttl(self):
+        store = MemoryStore(ttl_seconds=None, max_messages=3)
+        for i in range(5):
+            store.add_message(1, "user", f"msg {i}")
+        msgs = store.get_context(1)
+        assert len(msgs) == 3
+        assert msgs[-1].content == "msg 4"
 
 
 class TestChatIsolation:

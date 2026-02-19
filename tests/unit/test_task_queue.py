@@ -4,11 +4,13 @@ Unit tests for TaskQueue.
 Uses a temporary in-memory SQLite database (not the production state.db).
 """
 
+from datetime import datetime, timedelta
+
 import pytest
 import pytest_asyncio
 
 from src.core.state_manager import StateManager
-from src.core.task_queue import VALID_TASK_TYPES, TaskQueue
+from src.core.task_queue import VALID_STATUSES, VALID_TASK_TYPES, TaskQueue
 
 
 @pytest_asyncio.fixture
@@ -141,6 +143,134 @@ class TestUpdate:
 # ---------------------------------------------------------------------------
 # depth
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# waiting_clarification status
+# ---------------------------------------------------------------------------
+
+
+class TestValidStatuses:
+    def test_waiting_clarification_is_valid(self):
+        assert "waiting_clarification" in VALID_STATUSES
+
+    async def test_update_accepts_waiting_clarification(self, queue):
+        task_id = await queue.push("code", {"instruction": "x"})
+        await queue.pop()
+        # Should not raise
+        await queue.update(task_id, status="waiting_clarification")
+        task = await queue.get(task_id)
+        assert task.status == "waiting_clarification"
+
+
+# ---------------------------------------------------------------------------
+# Clarification helpers
+# ---------------------------------------------------------------------------
+
+
+class TestClarificationHelpers:
+    async def test_await_clarification_sets_status(self, queue):
+        task_id = await queue.push("code", {"instruction": "x"}, chat_id=99)
+        await queue.pop()
+        await queue.await_clarification(task_id)
+        task = await queue.get(task_id)
+        assert task.status == "waiting_clarification"
+
+    async def test_await_clarification_stores_deadline(self, queue):
+        task_id = await queue.push("code", {"instruction": "x"}, chat_id=99)
+        await queue.pop()
+        await queue.await_clarification(task_id)
+        task = await queue.get(task_id)
+        assert "_clarify_deadline" in task.payload
+
+    async def test_find_waiting_clarification_returns_task(self, queue):
+        task_id = await queue.push("code", {"instruction": "x"}, chat_id=55)
+        await queue.pop()
+        await queue.await_clarification(task_id)
+        found = await queue.find_waiting_clarification(chat_id=55)
+        assert found is not None
+        assert found.id == task_id
+
+    async def test_find_waiting_clarification_returns_none_for_other_chat(self, queue):
+        task_id = await queue.push("code", {"instruction": "x"}, chat_id=55)
+        await queue.pop()
+        await queue.await_clarification(task_id)
+        found = await queue.find_waiting_clarification(chat_id=999)
+        assert found is None
+
+    async def test_find_waiting_clarification_returns_none_when_none_waiting(self, queue):
+        found = await queue.find_waiting_clarification(chat_id=55)
+        assert found is None
+
+    async def test_resume_with_answer_sets_pending_and_stores_answer(self, queue):
+        task_id = await queue.push("code", {"instruction": "x"}, chat_id=55)
+        await queue.pop()
+        await queue.await_clarification(task_id)
+        await queue.resume_with_answer(task_id, "my answer")
+        task = await queue.get(task_id)
+        assert task.status == "pending"
+        assert task.payload["clarify_answer"] == "my answer"
+
+    async def test_resume_with_answer_removes_deadline(self, queue):
+        task_id = await queue.push("code", {"instruction": "x"}, chat_id=55)
+        await queue.pop()
+        await queue.await_clarification(task_id)
+        await queue.resume_with_answer(task_id, "answer")
+        task = await queue.get(task_id)
+        assert "_clarify_deadline" not in task.payload
+
+    async def test_expire_stale_clarifications_marks_failed(self, queue):
+        task_id = await queue.push("code", {"instruction": "x"}, chat_id=55)
+        await queue.pop()
+        await queue.await_clarification(task_id)
+        # Manually backdate the deadline to simulate expiry
+        import json
+
+        async with __import__("aiosqlite").connect(queue.db_path) as db:
+            cursor = await db.execute("SELECT payload FROM task_queue WHERE id = ?", (task_id,))
+            row = await cursor.fetchone()
+            payload = json.loads(row[0])
+            payload["_clarify_deadline"] = (datetime.utcnow() - timedelta(minutes=1)).isoformat()
+            await db.execute(
+                "UPDATE task_queue SET payload = ? WHERE id = ?",
+                (json.dumps(payload), task_id),
+            )
+            await db.commit()
+
+        expired = await queue.expire_stale_clarifications()
+        assert any(t[0] == task_id for t in expired)
+        task = await queue.get(task_id)
+        assert task.status == "failed"
+        assert "Timed out" in (task.error or "")
+
+    async def test_expire_stale_clarifications_returns_chat_id(self, queue):
+        import json
+
+        task_id = await queue.push("code", {"instruction": "x"}, chat_id=77)
+        await queue.pop()
+        await queue.await_clarification(task_id)
+        async with __import__("aiosqlite").connect(queue.db_path) as db:
+            cursor = await db.execute("SELECT payload FROM task_queue WHERE id = ?", (task_id,))
+            row = await cursor.fetchone()
+            payload = json.loads(row[0])
+            payload["_clarify_deadline"] = (datetime.utcnow() - timedelta(minutes=1)).isoformat()
+            await db.execute(
+                "UPDATE task_queue SET payload = ? WHERE id = ?",
+                (json.dumps(payload), task_id),
+            )
+            await db.commit()
+
+        expired = await queue.expire_stale_clarifications()
+        chat_ids = [chat_id for _, chat_id in expired]
+        assert 77 in chat_ids
+
+    async def test_expire_stale_does_not_expire_fresh_task(self, queue):
+        task_id = await queue.push("code", {"instruction": "x"}, chat_id=55)
+        await queue.pop()
+        await queue.await_clarification(task_id)
+        expired = await queue.expire_stale_clarifications()
+        # Deadline is 10 minutes in the future — should not expire
+        assert not any(t[0] == task_id for t in expired)
 
 
 class TestDepth:

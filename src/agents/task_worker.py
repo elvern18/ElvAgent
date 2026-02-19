@@ -1,10 +1,11 @@
 """
 TaskWorker — AgentLoop that processes tasks from the TaskQueue.
 
-poll()   → claim the next pending task (5 s interval)
+poll()   → expire stale clarifications, then claim the next pending task
 triage() → pass-through (task already claimed atomically by pop())
 act()    → dispatch to the correct handler
-record() → mark task done/failed in DB + send Telegram reply to chat_id
+record() → persist outcome; for waiting_clarification tasks, pause the task
+           and forward the questions to Telegram instead of finalising.
 """
 
 from src.agents.base import AgentLoop
@@ -18,6 +19,11 @@ from src.memory.memory_store import MemoryStore
 from src.utils.logger import get_logger
 
 logger = get_logger("task_worker")
+
+_CLARIFICATION_TIMEOUT_MSG = (
+    "Coding task timed out — no clarification received within 10 minutes.\n"
+    "Send /code again to restart."
+)
 
 
 class TaskWorker(AgentLoop):
@@ -38,7 +44,8 @@ class TaskWorker(AgentLoop):
     # ------------------------------------------------------------------
 
     async def poll(self) -> list[Task]:
-        """Claim the next pending task; return empty list if queue is empty."""
+        """Expire stale clarifications, then claim the next pending task."""
+        await self._expire_stale_clarifications()
         task = await self.task_queue.pop()
         return [task] if task else []
 
@@ -55,18 +62,33 @@ class TaskWorker(AgentLoop):
         return results
 
     async def record(self, results: list[HandlerResult]) -> None:
-        """Persist outcome to DB and send Telegram reply if chat_id is set."""
+        """Persist outcome to DB and send Telegram reply if chat_id is set.
+
+        Tasks with status='waiting_clarification' are *paused* rather than
+        finalised: the queue entry is updated to waiting_clarification and
+        the questions are forwarded to Telegram.  The task will be re-queued
+        as pending by TelegramAgent once the user replies.
+        """
         for result in results:
-            await self.task_queue.update(
-                task_id=result.task.id,
-                status=result.status,
-                result=result.data,
-                error=result.error,
-            )
-            if result.task.chat_id and result.reply:
-                await self._send_reply(result.task.chat_id, result.reply)
-                if self.memory_store:
-                    self.memory_store.add_message(result.task.chat_id, "assistant", result.reply)
+            if result.status == "waiting_clarification":
+                # Pause the task — do not mark done/failed yet
+                await self.task_queue.await_clarification(result.task.id)
+                if result.task.chat_id and result.reply:
+                    await self._send_reply(result.task.chat_id, result.reply)
+                # Questions are not an assistant message — don't add to memory
+            else:
+                await self.task_queue.update(
+                    task_id=result.task.id,
+                    status=result.status,
+                    result=result.data,
+                    error=result.error,
+                )
+                if result.task.chat_id and result.reply:
+                    await self._send_reply(result.task.chat_id, result.reply)
+                    if self.memory_store:
+                        self.memory_store.add_message(
+                            result.task.chat_id, "assistant", result.reply
+                        )
 
     # ------------------------------------------------------------------
     # Dispatch
@@ -114,6 +136,18 @@ class TaskWorker(AgentLoop):
                 reply=f"Task #{task.id} failed: {exc}",
                 error=str(exc),
             )
+
+    # ------------------------------------------------------------------
+    # Stale-clarification expiry
+    # ------------------------------------------------------------------
+
+    async def _expire_stale_clarifications(self) -> None:
+        """Fail tasks that exceeded the clarification timeout and notify the user."""
+        expired = await self.task_queue.expire_stale_clarifications()
+        for task_id, chat_id in expired:
+            logger.warning("task_clarification_timed_out", task_id=task_id)
+            if chat_id:
+                await self._send_reply(chat_id, _CLARIFICATION_TIMEOUT_MSG)
 
     # ------------------------------------------------------------------
     # Telegram reply

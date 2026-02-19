@@ -15,6 +15,9 @@ logger = get_logger("tool.shell")
 
 DEFAULT_TIMEOUT = 120  # seconds
 
+# Cap individual stream lengths so long-running commands don't flood LLM context.
+_MAX_OUTPUT_CHARS = 20_000
+
 
 @dataclass
 class ShellResult:
@@ -34,6 +37,29 @@ class ShellResult:
             parts.append(self.stdout.rstrip())
         if self.stderr:
             parts.append(f"[stderr]\n{self.stderr.rstrip()}")
+        if not parts:
+            parts.append(f"(exit {self.returncode})")
+        return "\n".join(parts)
+
+    def truncated_str(self) -> str:
+        """Like __str__ but caps each stream at _MAX_OUTPUT_CHARS.
+
+        Use this when passing output to an LLM to prevent context explosion.
+        """
+
+        def _cap(text: str) -> str:
+            if len(text) <= _MAX_OUTPUT_CHARS:
+                return text
+            return (
+                text[:_MAX_OUTPUT_CHARS] + f"\n...[truncated — {len(text):,} chars total,"
+                f" showing first {_MAX_OUTPUT_CHARS:,}]"
+            )
+
+        parts = []
+        if self.stdout:
+            parts.append(_cap(self.stdout.rstrip()))
+        if self.stderr:
+            parts.append(f"[stderr]\n{_cap(self.stderr.rstrip())}")
         if not parts:
             parts.append(f"(exit {self.returncode})")
         return "\n".join(parts)

@@ -3,11 +3,24 @@ SQLite-backed priority task queue for the PA system.
 
 Tasks are pushed by incoming sources (e.g. Telegram commands) and processed
 by the TaskWorker agent. Priority 1 = highest, 10 = lowest.
+
+Clarification flow
+------------------
+When CodeHandler decides it needs to ask the user clarifying questions before
+coding, it returns status="waiting_clarification".  TaskWorker calls
+await_clarification() to persist the paused state with a 10-minute deadline.
+
+When the user replies, TelegramAgent calls resume_with_answer() to inject the
+answer into the task payload and reset the status to "pending" so TaskWorker
+picks it up on the next poll.
+
+Tasks whose deadline has passed are expired by expire_stale_clarifications(),
+which is called at the top of every TaskWorker poll cycle.
 """
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +32,10 @@ from src.utils.logger import get_logger
 logger = get_logger("task_queue")
 
 VALID_TASK_TYPES = frozenset({"code", "newsletter", "status", "shell"})
-VALID_STATUSES = frozenset({"pending", "in_progress", "done", "failed"})
+VALID_STATUSES = frozenset({"pending", "in_progress", "waiting_clarification", "done", "failed"})
+
+# How long to wait for a user clarification reply before giving up.
+CLARIFICATION_TIMEOUT_MINUTES = 10
 
 
 @dataclass
@@ -49,6 +65,10 @@ class TaskQueue:
 
     def __init__(self, db_path: Path | None = None):
         self.db_path = db_path or settings.database_path
+
+    # ------------------------------------------------------------------
+    # Core operations
+    # ------------------------------------------------------------------
 
     async def push(
         self,
@@ -157,7 +177,7 @@ class TaskQueue:
 
         Args:
             task_id: Task to update
-            status: 'done' or 'failed'
+            status: One of VALID_STATUSES
             result: Success result payload (JSON-serialisable)
             error: Error message on failure
         """
@@ -209,3 +229,135 @@ class TaskQueue:
             cursor = await db.execute("SELECT COUNT(*) FROM task_queue WHERE status = ?", (status,))
             row = await cursor.fetchone()
         return row[0] if row else 0
+
+    # ------------------------------------------------------------------
+    # Clarification helpers
+    # ------------------------------------------------------------------
+
+    async def await_clarification(self, task_id: int) -> None:
+        """Pause a task, waiting for the user to answer clarifying questions.
+
+        Stores a deadline in the task payload so that
+        expire_stale_clarifications() can time out the task if the user
+        does not respond within CLARIFICATION_TIMEOUT_MINUTES.
+        """
+        deadline = (
+            datetime.utcnow() + timedelta(minutes=CLARIFICATION_TIMEOUT_MINUTES)
+        ).isoformat()
+
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("SELECT payload FROM task_queue WHERE id = ?", (task_id,))
+            row = await cursor.fetchone()
+            if row:
+                payload = json.loads(row[0])
+                payload["_clarify_deadline"] = deadline
+                await db.execute(
+                    """
+                    UPDATE task_queue
+                    SET status = 'waiting_clarification',
+                        payload = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (json.dumps(payload), task_id),
+                )
+                await db.commit()
+
+        logger.info("task_awaiting_clarification", task_id=task_id, deadline=deadline)
+
+    async def find_waiting_clarification(self, chat_id: int) -> Task | None:
+        """Return the most-recent waiting_clarification task for *chat_id*, or None."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """
+                SELECT * FROM task_queue
+                WHERE status = 'waiting_clarification' AND chat_id = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (chat_id,),
+            )
+            row = await cursor.fetchone()
+
+        if not row:
+            return None
+
+        return Task(
+            id=row["id"],
+            task_type=row["task_type"],
+            payload=json.loads(row["payload"]),
+            status=row["status"],
+            priority=row["priority"],
+            chat_id=row["chat_id"],
+        )
+
+    async def resume_with_answer(self, task_id: int, answer: str) -> None:
+        """Store the user's clarification answer and re-queue the task as pending.
+
+        CodeHandler reads ``payload["clarify_answer"]`` and skips the
+        clarification phase when it finds a value there.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("SELECT payload FROM task_queue WHERE id = ?", (task_id,))
+            row = await cursor.fetchone()
+            if row:
+                payload = json.loads(row[0])
+                payload["clarify_answer"] = answer
+                payload.pop("_clarify_deadline", None)
+                await db.execute(
+                    """
+                    UPDATE task_queue
+                    SET status = 'pending',
+                        payload = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (json.dumps(payload), task_id),
+                )
+                await db.commit()
+
+        logger.info("task_clarification_resumed", task_id=task_id)
+
+    async def expire_stale_clarifications(self) -> list[tuple[int, int | None]]:
+        """Mark timed-out waiting_clarification tasks as failed.
+
+        Called at the top of every TaskWorker poll cycle.
+
+        Returns:
+            List of (task_id, chat_id) for each expired task so the caller
+            can send the user a "timed out" message.
+        """
+        now_iso = datetime.utcnow().isoformat()
+        expired: list[tuple[int, int | None]] = []
+
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT id, chat_id, payload FROM task_queue WHERE status = 'waiting_clarification'"
+            )
+            rows = await cursor.fetchall()
+
+            for row in rows:
+                payload = json.loads(row["payload"])
+                deadline = payload.get("_clarify_deadline")
+                if deadline and deadline < now_iso:
+                    await db.execute(
+                        """
+                        UPDATE task_queue
+                        SET status = 'failed',
+                            error = 'Timed out waiting for clarification',
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                        """,
+                        (row["id"],),
+                    )
+                    expired.append((row["id"], row["chat_id"]))
+
+            if expired:
+                await db.commit()
+
+        for task_id, _ in expired:
+            logger.info("task_clarification_expired", task_id=task_id)
+
+        return expired

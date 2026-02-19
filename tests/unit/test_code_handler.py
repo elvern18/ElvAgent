@@ -92,6 +92,7 @@ class TestSuccessfulTask:
             patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
         ):
             mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
             MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
             result = await handler.handle(task)
 
@@ -117,6 +118,7 @@ class TestSuccessfulTask:
             patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
         ):
             mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
             MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
             result = await handler.handle(task)
 
@@ -141,6 +143,7 @@ class TestSuccessfulTask:
             patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
         ):
             mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
             MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
             result = await handler.handle(task)
 
@@ -173,6 +176,7 @@ class TestFailedTask:
             patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
         ):
             mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
             MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
             result = await handler.handle(task)
 
@@ -198,6 +202,7 @@ class TestFailedTask:
             patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
         ):
             mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
             MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
             result = await handler.handle(task)
 
@@ -218,6 +223,7 @@ class TestExceptionHandling:
             patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
         ):
             mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
             MockCodeTool.return_value.execute = AsyncMock(
                 side_effect=RuntimeError("unexpected crash")
             )
@@ -304,6 +310,7 @@ class TestContextEnrichment:
             patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
         ):
             mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
             MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
             await handler.handle(task)
 
@@ -322,6 +329,7 @@ class TestContextEnrichment:
             patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
         ):
             mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
             MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
             await handler.handle(task)
 
@@ -347,6 +355,7 @@ class TestDefaultRepo:
             patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
         ):
             mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
             MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
             await handler.handle(task)
 
@@ -363,8 +372,120 @@ class TestDefaultRepo:
         ):
             mock_settings.validate_production_config.return_value = True
             mock_settings.pa_working_dir = "/default/elvagent"
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
             MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
             await handler.handle(task)
 
         instruction_used = MockCodeTool.return_value.execute.call_args[0][0]
         assert "Working repository: /default/elvagent" in instruction_used
+
+
+# ---------------------------------------------------------------------------
+# Clarification phase
+# ---------------------------------------------------------------------------
+
+
+class TestClarificationPhase:
+    async def test_returns_waiting_clarification_when_questions_needed(self):
+        """When clarify() returns questions, handle() pauses and returns waiting_clarification."""
+        handler = _make_handler()
+        task = _make_task(instruction="build a marketplace")
+        with (
+            patch("src.agents.handlers.code_handler.settings") as mock_settings,
+            patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
+        ):
+            mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(
+                return_value="1. What token symbol?\n2. Which blockchain?"
+            )
+            result = await handler.handle(task)
+
+        assert result.status == "waiting_clarification"
+        MockCodeTool.return_value.execute.assert_not_called()
+
+    async def test_waiting_clarification_reply_contains_questions(self):
+        handler = _make_handler()
+        task = _make_task(instruction="build something")
+        with (
+            patch("src.agents.handlers.code_handler.settings") as mock_settings,
+            patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
+        ):
+            mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(
+                return_value="1. What name?\n2. What framework?"
+            )
+            result = await handler.handle(task)
+
+        assert "1. What name?" in result.reply
+        assert "2. What framework?" in result.reply
+
+    async def test_clarify_answer_in_payload_skips_clarification(self):
+        """If payload already has clarify_answer, skip the clarification phase."""
+        handler = _make_handler()
+        task = Task(
+            id=7,
+            task_type="code",
+            payload={
+                "instruction": "build a marketplace",
+                "clarify_answer": "Token symbol: TOK, Ethereum blockchain.",
+            },
+            chat_id=99,
+        )
+        mock_result = _make_success_result()
+        with (
+            patch("src.agents.handlers.code_handler.settings") as mock_settings,
+            patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
+        ):
+            mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value="should not be called")
+            MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
+            result = await handler.handle(task)
+
+        assert result.status == "done"
+        MockCodeTool.return_value.clarify.assert_not_called()
+
+    async def test_clarify_answer_included_in_instruction(self):
+        """The clarification answer is prepended to the instruction passed to CodeTool."""
+        handler = _make_handler()
+        task = Task(
+            id=7,
+            task_type="code",
+            payload={
+                "instruction": "build a marketplace",
+                "clarify_answer": "Token symbol: TOK.",
+            },
+            chat_id=99,
+        )
+        mock_result = _make_success_result()
+        with (
+            patch("src.agents.handlers.code_handler.settings") as mock_settings,
+            patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
+        ):
+            mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
+            MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
+            await handler.handle(task)
+
+        instruction_used = MockCodeTool.return_value.execute.call_args[0][0]
+        assert "Token symbol: TOK." in instruction_used
+        assert "Clarification from user:" in instruction_used
+
+
+# ---------------------------------------------------------------------------
+# _build_full_instruction — clarify_answer param
+# ---------------------------------------------------------------------------
+
+
+class TestBuildFullInstructionClarifyAnswer:
+    def test_clarify_answer_included_when_provided(self):
+        result = _build_full_instruction("build it", [], "/repo", clarify_answer="Use Solidity.")
+        assert "Clarification from user:" in result
+        assert "Use Solidity." in result
+
+    def test_no_clarify_answer_omits_clarification_section(self):
+        result = _build_full_instruction("build it", [], "/repo")
+        assert "Clarification from user:" not in result
+
+    def test_clarify_answer_appears_before_instruction(self):
+        result = _build_full_instruction("build it", [], "/repo", clarify_answer="Use Python.")
+        assert result.index("Use Python.") < result.index("build it")

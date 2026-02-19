@@ -19,6 +19,8 @@ def _make_worker() -> TaskWorker:
     sm = MagicMock()
     worker = TaskWorker(state_manager=sm)
     worker.task_queue = MagicMock()
+    # expire_stale_clarifications is awaited in poll() — must be AsyncMock
+    worker.task_queue.expire_stale_clarifications = AsyncMock(return_value=[])
     return worker
 
 
@@ -170,3 +172,66 @@ class TestRecord:
         worker.task_queue.update.assert_awaited_once_with(
             task_id=1, status="failed", result=None, error="boom"
         )
+
+    async def test_waiting_clarification_calls_await_clarification(self):
+        """waiting_clarification result pauses the task, does not call update()."""
+        worker = _make_worker()
+        task = _make_task("code", chat_id=55)
+        worker.task_queue.update = AsyncMock()
+        worker.task_queue.await_clarification = AsyncMock()
+        result = HandlerResult(
+            task=task,
+            status="waiting_clarification",
+            reply="What token symbol do you want?",
+        )
+
+        with patch.object(worker, "_send_reply", new=AsyncMock()) as mock_send:
+            await worker.record([result])
+
+        worker.task_queue.await_clarification.assert_awaited_once_with(task.id)
+        worker.task_queue.update.assert_not_called()
+        mock_send.assert_awaited_once_with(55, "What token symbol do you want?")
+
+    async def test_waiting_clarification_does_not_add_to_memory(self):
+        """Questions sent to the user are not stored as assistant messages."""
+        worker = _make_worker()
+        from src.memory.memory_store import MemoryStore
+
+        memory = MemoryStore()
+        worker.memory_store = memory
+        task = _make_task("code", chat_id=55)
+        worker.task_queue.await_clarification = AsyncMock()
+        result = HandlerResult(
+            task=task,
+            status="waiting_clarification",
+            reply="Some questions",
+        )
+
+        with patch.object(worker, "_send_reply", new=AsyncMock()):
+            await worker.record([result])
+
+        assert memory.get_context(55) == []
+
+    async def test_poll_expires_stale_clarifications(self):
+        """poll() calls expire_stale_clarifications before popping a task."""
+        worker = _make_worker()
+        worker.task_queue.expire_stale_clarifications = AsyncMock(return_value=[])
+        worker.task_queue.pop = AsyncMock(return_value=None)
+
+        await worker.poll()
+
+        worker.task_queue.expire_stale_clarifications.assert_awaited_once()
+
+    async def test_poll_sends_timeout_message_for_expired_task(self):
+        """Expired clarification tasks trigger a Telegram notification."""
+        worker = _make_worker()
+        worker.task_queue.expire_stale_clarifications = AsyncMock(return_value=[(42, 99)])
+        worker.task_queue.pop = AsyncMock(return_value=None)
+
+        with patch.object(worker, "_send_reply", new=AsyncMock()) as mock_send:
+            await worker.poll()
+
+        mock_send.assert_awaited_once()
+        args = mock_send.call_args[0]
+        assert args[0] == 99  # correct chat_id
+        assert "timed out" in args[1].lower()

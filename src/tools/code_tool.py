@@ -1,7 +1,9 @@
 """
-CodeTool — autonomous two-phase coding execution.
+CodeTool — autonomous three-phase coding execution.
 
-Phase 1 (plan): Haiku generates a concise implementation plan.
+Phase 0 (clarify): Haiku checks whether the instruction needs clarification.
+                   Returns questions for the user, or None to proceed.
+Phase 1 (plan):    Haiku generates a concise implementation plan.
 Phase 2 (execute): Sonnet with tool_use implements the plan using
                    filesystem and shell tools.
 
@@ -9,11 +11,18 @@ After execution:
 - Run pytest as a final gate.
 - If tests pass → push branch + create PR.
 - If tests fail → keep branch locally, report failure.
+
+Context management:
+- Tool results are capped at _MAX_TOOL_RESULT_CHARS to prevent token explosion.
+- Noisy directories (.venv, .git, etc.) are excluded from all tool calls.
+- The message list passed to Sonnet is trimmed to a sliding window so that
+  accumulated history never exceeds the model's context limit.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import anthropic
 
@@ -26,7 +35,25 @@ from src.utils.logger import get_logger
 logger = get_logger("tool.code")
 
 # ---------------------------------------------------------------------------
-# Claude tool definitions (exposed to Sonnet during execution phase)
+# Constants
+# ---------------------------------------------------------------------------
+
+# Directories that should never be read or listed — they're noisy and large.
+_EXCLUDED_DIRS: frozenset[str] = frozenset(
+    {".venv", ".git", "__pycache__", ".mypy_cache", ".ruff_cache", "node_modules"}
+)
+
+# Single tool-result cap: keeps each read_file / run_shell output small enough
+# that even 30 accumulated results stay well under 200K tokens.
+_MAX_TOOL_RESULT_CHARS = 20_000
+
+# Sliding-window size for the Sonnet execution loop.  We always keep the
+# initial user instruction plus the last N assistant/tool-result pairs.
+_CONTEXT_KEEP_LAST_PAIRS = 10
+
+
+# ---------------------------------------------------------------------------
+# Claude tool definitions (exposed to Sonnet during the execution phase)
 # ---------------------------------------------------------------------------
 
 _CLAUDE_TOOLS: list[dict] = [
@@ -144,17 +171,63 @@ class CodeResult:
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _truncate_tool_result(result: str) -> str:
+    """Cap a tool result string so it never blows up LLM context.
+
+    The truncation notice tells the model exactly what happened so it can
+    adjust — e.g. request a narrower line range instead of the whole file.
+    """
+    if len(result) <= _MAX_TOOL_RESULT_CHARS:
+        return result
+    return (
+        result[:_MAX_TOOL_RESULT_CHARS] + f"\n...[truncated — {len(result):,} chars total,"
+        f" showing first {_MAX_TOOL_RESULT_CHARS:,}]"
+    )
+
+
+def _trim_messages(messages: list[dict]) -> list[dict]:
+    """Sliding-window trim for the Sonnet tool-use message list.
+
+    After the initial user instruction, messages come in (assistant, user)
+    pairs.  We keep the first message plus the last N complete pairs so that
+    accumulated history never causes a token-limit error.
+    """
+    max_total = 1 + _CONTEXT_KEEP_LAST_PAIRS * 2
+    if len(messages) <= max_total:
+        return messages
+    return [messages[0]] + messages[-(max_total - 1) :]
+
+
+def _is_excluded_path(path: str) -> str | None:
+    """Return the excluded directory name if *path* passes through one, else None."""
+    for part in Path(path).parts:
+        if part in _EXCLUDED_DIRS:
+            return part
+    return None
+
+
+# ---------------------------------------------------------------------------
 # CodeTool
 # ---------------------------------------------------------------------------
 
 
 class CodeTool:
     """
-    Autonomous coding tool that plans, executes, tests, and opens a PR.
+    Autonomous coding tool: clarify → plan → execute → test → PR.
 
     Usage::
 
-        result = await CodeTool().execute("fix the type error in main.py")
+        # Check if the instruction needs clarification first:
+        questions = await CodeTool().clarify(instruction)
+        if questions:
+            # send questions to the user; resume later with the answer
+
+        # Then execute (optionally with user's clarification answer):
+        result = await CodeTool().execute(instruction)
     """
 
     _PLAN_MODEL = "claude-haiku-4-5-20251001"
@@ -167,13 +240,40 @@ class CodeTool:
         self._client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
     # ------------------------------------------------------------------
+    # Phase 0: Clarification check (Haiku)
+    # ------------------------------------------------------------------
+
+    async def clarify(self, instruction: str) -> str | None:
+        """Ask Haiku whether the instruction needs clarification before coding.
+
+        Returns a formatted string of numbered questions, or None if the
+        instruction is clear enough to implement directly.
+        """
+        response = await self._client.messages.create(
+            model=self._PLAN_MODEL,
+            max_tokens=300,
+            system=(
+                "You are reviewing a coding task instruction.\n"
+                "If it is clear and specific enough to implement confidently,"
+                " reply with exactly: PROCEED\n"
+                "If you genuinely need clarification to avoid building the wrong thing,"
+                " respond with 1-5 numbered questions. Be concise."
+                " Only ask truly necessary questions —"
+                " not nice-to-haves or implementation details you can decide yourself."
+            ),
+            messages=[{"role": "user", "content": instruction}],
+        )
+        text = (response.content[0].text or "").strip() if response.content else ""
+        if not text or text.upper().startswith("PROCEED"):
+            return None
+        return text
+
+    # ------------------------------------------------------------------
     # Public entry point
     # ------------------------------------------------------------------
 
     async def execute(self, instruction: str) -> CodeResult:
-        """
-        Plan, implement, test, and (if tests pass) push a PR for `instruction`.
-        """
+        """Plan, implement, test, and (if tests pass) push a PR for `instruction`."""
         slug = GitTool.make_slug(instruction)
         original_branch = await self._git.current_branch()
         branch = ""
@@ -255,7 +355,8 @@ class CodeTool:
     async def _plan(self, instruction: str) -> str:
         """Call Haiku to generate a concise 3-5 step implementation plan."""
         try:
-            repo_listing = "\n".join(self._fs.list_dir(str(settings.github_repo_path)))
+            all_entries = self._fs.list_dir(str(settings.github_repo_path))
+            repo_listing = "\n".join(e for e in all_entries if e.rstrip("/") not in _EXCLUDED_DIRS)
         except Exception:
             repo_listing = "(could not list repo)"
 
@@ -284,7 +385,14 @@ class CodeTool:
     # ------------------------------------------------------------------
 
     async def _execute(self, instruction: str, plan: str) -> tuple[str, list[dict]]:
-        """Run Sonnet in a tool_use loop. Returns (final_text, tool_call_log)."""
+        """Run Sonnet in a tool_use loop. Returns (final_text, tool_call_log).
+
+        Two key safeguards prevent the 9.7M-token explosion:
+        1. Tool results are capped via _truncate_tool_result().
+        2. The messages sent to the API are trimmed to a sliding window via
+           _trim_messages() — the full list grows, but only a recent window
+           is forwarded on each call.
+        """
         system = (
             "You are an expert Python developer working on the ElvAgent codebase.\n"
             f"Repository: {settings.github_repo_path}\n"
@@ -303,10 +411,10 @@ class CodeTool:
                 max_tokens=8192,
                 system=system,
                 tools=_CLAUDE_TOOLS,
-                messages=messages,
+                messages=_trim_messages(messages),
             )
 
-            # Append assistant turn
+            # Append the full assistant turn to the growing history
             messages.append({"role": "assistant", "content": response.content})
 
             if response.stop_reason == "end_turn":
@@ -349,17 +457,30 @@ class CodeTool:
     # ------------------------------------------------------------------
 
     async def _call_tool(self, name: str, tool_input: dict) -> str:
-        """Execute a single Claude tool call and return the result as a string."""
+        """Execute a single Claude tool call and return the result as a string.
+
+        Excluded directories (.venv, .git, …) are blocked.
+        All results are capped at _MAX_TOOL_RESULT_CHARS.
+        """
         try:
             if name == "read_file":
-                return self._fs.read_file(tool_input["path"])
+                path = tool_input["path"]
+                excluded = _is_excluded_path(path)
+                if excluded:
+                    return (
+                        f"Error: reading files from {excluded!r} is not allowed"
+                        " (excluded directory — use a more specific path)."
+                    )
+                return _truncate_tool_result(self._fs.read_file(path))
 
             if name == "write_file":
                 return self._fs.write_file(tool_input["path"], tool_input["content"])
 
             if name == "list_dir":
                 entries = self._fs.list_dir(tool_input["path"])
-                return "\n".join(entries) if entries else "(empty directory)"
+                # Strip out noisy dirs so the model doesn't try to recurse into them
+                visible = [e for e in entries if e.rstrip("/") not in _EXCLUDED_DIRS]
+                return "\n".join(visible) if visible else "(empty directory)"
 
             if name == "run_shell":
                 result = await self._shell.run(
@@ -367,7 +488,7 @@ class CodeTool:
                     tool_input.get("args", []),
                     cwd=str(settings.github_repo_path),
                 )
-                return str(result)
+                return _truncate_tool_result(result.truncated_str())
 
             return f"Unknown tool: {name!r}"
 
