@@ -381,6 +381,60 @@ class TestDefaultRepo:
 
 
 # ---------------------------------------------------------------------------
+# task_label — branch slug uses raw instruction, not enriched full instruction
+# ---------------------------------------------------------------------------
+
+
+class TestTaskLabel:
+    async def test_execute_receives_raw_instruction_as_task_label(self):
+        """execute() must receive task_label=<raw instruction> so the branch slug
+        is based on the user's intent and not the enriched context prefix
+        (which begins with 'Working repository: /home/...' and produces a
+        bad slug like 'working-repository-home-elvern-make-a-ne')."""
+        handler = _make_handler()
+        task = _make_task(instruction="fix the bug")
+        mock_result = _make_success_result()
+        with (
+            patch("src.agents.handlers.code_handler.settings") as mock_settings,
+            patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
+        ):
+            mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
+            MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
+            await handler.handle(task)
+
+        assert MockCodeTool.return_value.execute.call_args.kwargs["task_label"] == "fix the bug"
+
+    async def test_task_label_unchanged_even_with_context_and_clarify_answer(self):
+        """task_label is always the original instruction regardless of context/answers."""
+        handler = _make_handler()
+        task = Task(
+            id=7,
+            task_type="code",
+            payload={
+                "instruction": "build a trading bot",
+                "context": [{"role": "user", "content": "plan first", "ts": 1.0}],
+                "clarify_answer": "Use Binance API.",
+            },
+            chat_id=99,
+        )
+        mock_result = _make_success_result()
+        with (
+            patch("src.agents.handlers.code_handler.settings") as mock_settings,
+            patch("src.agents.handlers.code_handler.CodeTool") as MockCodeTool,
+        ):
+            mock_settings.validate_production_config.return_value = True
+            MockCodeTool.return_value.clarify = AsyncMock(return_value=None)
+            MockCodeTool.return_value.execute = AsyncMock(return_value=mock_result)
+            await handler.handle(task)
+
+        assert (
+            MockCodeTool.return_value.execute.call_args.kwargs["task_label"]
+            == "build a trading bot"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Clarification phase
 # ---------------------------------------------------------------------------
 

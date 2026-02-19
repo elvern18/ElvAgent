@@ -272,9 +272,19 @@ class CodeTool:
     # Public entry point
     # ------------------------------------------------------------------
 
-    async def execute(self, instruction: str) -> CodeResult:
-        """Plan, implement, test, and (if tests pass) push a PR for `instruction`."""
-        slug = GitTool.make_slug(instruction)
+    async def execute(self, instruction: str, task_label: str | None = None) -> CodeResult:
+        """Plan, implement, test, and (if tests pass) push a PR for ``instruction``.
+
+        Args:
+            instruction: Full enriched instruction forwarded to the planning and
+                execution phases.  May include conversation context, repo path,
+                and clarification answers prepended by CodeHandler.
+            task_label:  Short label used *only* for the git branch slug.  Pass
+                the original user instruction here so the branch name reflects
+                the user's intent rather than the enriched context prefix.
+                Falls back to ``instruction`` when not provided.
+        """
+        slug = GitTool.make_slug(task_label or instruction)
         original_branch = await self._git.current_branch()
         branch = ""
 

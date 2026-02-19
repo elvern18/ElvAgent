@@ -131,7 +131,9 @@ class CodeHandler:
         logger.info("code_handler_start", task_id=task.id, instruction=instruction[:80])
 
         try:
-            result = await code_tool.execute(full_instruction)
+            # Pass the raw instruction as task_label so the git branch slug is
+            # derived from the user's intent, not the enriched context prefix.
+            result = await code_tool.execute(full_instruction, task_label=instruction)
             return HandlerResult(
                 task=task,
                 status="done" if result.success else "failed",

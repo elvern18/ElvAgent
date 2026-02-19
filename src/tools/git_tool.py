@@ -9,6 +9,7 @@ All operations target settings.github_repo_path.
 
 import asyncio
 import re
+import time
 from dataclasses import dataclass
 
 from src.config.settings import settings
@@ -72,11 +73,25 @@ class GitTool:
         return f"{settings.pa_branch_prefix}/{slug}"
 
     async def create_branch(self, slug: str) -> str:
-        """Create and checkout pa/<slug> from current HEAD. Returns branch name."""
+        """Create and checkout pa/<slug> from current HEAD. Returns branch name.
+
+        If a branch with the same slug already exists (e.g. from a previous
+        failed attempt), a 6-digit timestamp suffix is appended so the new
+        branch is always unique and the old branch is preserved for inspection.
+        """
         branch = self.branch_name(slug)
         result = await _run_proc("git", "checkout", "-b", branch, cwd=self._repo)
+
+        if not result.success and "already exists" in result.stderr:
+            # Previous run left this branch behind — append a timestamp so we
+            # never clobber it; the stale branch can be inspected or cleaned up.
+            suffix = str(int(time.time()))[-6:]
+            branch = self.branch_name(f"{slug[:33]}-{suffix}")
+            result = await _run_proc("git", "checkout", "-b", branch, cwd=self._repo)
+
         if not result.success:
             raise RuntimeError(f"git checkout -b {branch} failed:\n{result.stderr.strip()}")
+
         logger.info("git_branch_created", branch=branch)
         return branch
 
