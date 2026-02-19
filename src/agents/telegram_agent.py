@@ -17,6 +17,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from src.config.settings import settings
 from src.core.state_manager import StateManager
 from src.core.task_queue import TaskQueue
+from src.memory.memory_store import MemoryStore
 from src.utils.logger import get_logger
 
 logger = get_logger("telegram_agent")
@@ -27,7 +28,9 @@ ElvAgent commands:
 /start      — greeting
 /status     — current agent status
 /newsletter — trigger newsletter now
-/code <instruction> — code task (Phase C)
+/code <instruction> — autonomous coding task
+/remember <key> <value> — persist a fact (e.g. /remember default_repo /path/to/repo)
+/recall [key] — retrieve a fact, or list all facts
 /help       — this message
 
 Free-form text is treated as /code.
@@ -42,8 +45,9 @@ class TelegramAgent:
     other than TELEGRAM_OWNER_ID are rejected with an "Unauthorized." reply.
     """
 
-    def __init__(self, state_manager: StateManager):
+    def __init__(self, state_manager: StateManager, memory_store: MemoryStore | None = None):
         self.state_manager = state_manager
+        self.memory_store = memory_store or MemoryStore()
         self.task_queue = TaskQueue()
 
     # ------------------------------------------------------------------
@@ -84,6 +88,8 @@ class TelegramAgent:
         app.add_handler(CommandHandler("status", self._handle_status))
         app.add_handler(CommandHandler("newsletter", self._handle_newsletter))
         app.add_handler(CommandHandler("code", self._handle_code))
+        app.add_handler(CommandHandler("remember", self._handle_remember))
+        app.add_handler(CommandHandler("recall", self._handle_recall))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_free_text))
         return app
 
@@ -155,6 +161,41 @@ class TelegramAgent:
             return
         await self._queue_code_task(update, instruction)
 
+    async def _handle_remember(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Persist a key/value fact: /remember <key> <value>."""
+        if not await self._authorize(update):
+            return
+        args = context.args or []
+        if len(args) < 2:
+            await update.message.reply_text(
+                "Usage: /remember <key> <value>\nExample: /remember default_repo /home/elvern/ElvAgent"
+            )
+            return
+        key = args[0]
+        value = " ".join(args[1:])
+        await self.state_manager.set_fact(key, value)
+        await update.message.reply_text(f"Remembered: {key} = {value}")
+
+    async def _handle_recall(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Retrieve a fact: /recall <key>, or list all facts with /recall."""
+        if not await self._authorize(update):
+            return
+        args = context.args or []
+        if args:
+            key = args[0]
+            value = await self.state_manager.get_fact(key)
+            if value is None:
+                await update.message.reply_text(f"No fact found for '{key}'.")
+            else:
+                await update.message.reply_text(value)
+        else:
+            facts = await self.state_manager.get_all_facts()
+            if not facts:
+                await update.message.reply_text("No facts stored.")
+            else:
+                lines = [f"• {k} = {v}" for k, v in facts.items()]
+                await update.message.reply_text("\n".join(lines))
+
     async def _handle_free_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Treat free-form text as a /code shorthand."""
         if not await self._authorize(update):
@@ -169,15 +210,17 @@ class TelegramAgent:
     async def _queue_code_task(self, update: Update, instruction: str) -> None:
         """Push a code task to the queue and send an acknowledgment."""
         chat_id = update.effective_chat.id
+        self.memory_store.add_message(chat_id, "user", instruction)
+        prior_context = [m.to_dict() for m in self.memory_store.get_context(chat_id)[:-1]]
         task_id = await self.task_queue.push(
             "code",
-            {"instruction": instruction, "repo": str(settings.pa_working_dir)},
+            {
+                "instruction": instruction,
+                "repo": str(settings.pa_working_dir),
+                "context": prior_context,
+            },
             chat_id=chat_id,
             priority=5,
         )
         preview = instruction[:80] + ("..." if len(instruction) > 80 else "")
-        await update.message.reply_text(
-            f"Coding task queued (#{task_id}).\n"
-            f"Instruction: {preview}\n\n"
-            "\u26a0\ufe0f CodingTool arrives in Phase C."
-        )
+        await update.message.reply_text(f"Coding task queued (#{task_id}).\nInstruction: {preview}")

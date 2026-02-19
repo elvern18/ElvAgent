@@ -14,6 +14,7 @@ from src.agents.handlers.status_handler import StatusHandler
 from src.config.settings import settings
 from src.core.state_manager import StateManager
 from src.core.task_queue import Task, TaskQueue
+from src.memory.memory_store import MemoryStore
 from src.utils.logger import get_logger
 
 logger = get_logger("task_worker")
@@ -27,8 +28,9 @@ class TaskWorker(AgentLoop):
     a single task is caught and recorded — the worker keeps running.
     """
 
-    def __init__(self, state_manager: StateManager):
+    def __init__(self, state_manager: StateManager, memory_store: MemoryStore | None = None):
         self.state_manager = state_manager
+        self.memory_store = memory_store  # None is valid — reply tracking is optional
         self.task_queue = TaskQueue()
 
     # ------------------------------------------------------------------
@@ -63,6 +65,8 @@ class TaskWorker(AgentLoop):
             )
             if result.task.chat_id and result.reply:
                 await self._send_reply(result.task.chat_id, result.reply)
+                if self.memory_store:
+                    self.memory_store.add_message(result.task.chat_id, "assistant", result.reply)
 
     # ------------------------------------------------------------------
     # Dispatch

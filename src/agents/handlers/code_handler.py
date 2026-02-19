@@ -4,6 +4,10 @@ CodeHandler — runs the CodingTool for 'code' tasks.
 Called by TaskWorker when a 'code' task is dequeued.
 Delegates to CodeTool (plan → execute → test → PR) and wraps the
 outcome in a HandlerResult for Telegram reply + queue recording.
+
+Enriches the instruction with:
+- Prior conversation context from the task payload
+- Working repository path (from default_repo fact or settings fallback)
 """
 
 from src.agents.handlers.newsletter_handler import HandlerResult
@@ -14,6 +18,21 @@ from src.tools.code_tool import CodeTool
 from src.utils.logger import get_logger
 
 logger = get_logger("handler.code")
+
+
+def _build_full_instruction(instruction: str, context: list[dict], repo: str) -> str:
+    """
+    Assemble the full instruction string for CodeTool, prepending any
+    conversation context and the resolved working repository path.
+    """
+    parts = []
+    if context:
+        lines = [f"[{m['role']}] {m['content']}" for m in context if m.get("content")]
+        if lines:
+            parts.append("Recent conversation context:\n" + "\n".join(lines))
+    parts.append(f"Working repository: {repo}")
+    parts.append(instruction)
+    return "\n\n".join(parts)
 
 
 class CodeHandler:
@@ -27,12 +46,14 @@ class CodeHandler:
         Run a full coding cycle for the given task.
 
         Args:
-            task: Task with task_type='code' and payload={'instruction': str}
+            task: Task with task_type='code' and payload={'instruction': str,
+                  'context': list[dict] (optional)}
 
         Returns:
             HandlerResult with Telegram reply and status.
         """
-        instruction = (task.payload or {}).get("instruction", "").strip()
+        payload = task.payload or {}
+        instruction = payload.get("instruction", "").strip()
         if not instruction:
             return HandlerResult(
                 task=task,
@@ -49,10 +70,14 @@ class CodeHandler:
                 error="missing production config",
             )
 
+        context = payload.get("context", [])
+        repo = await self.state_manager.get_fact("default_repo") or str(settings.pa_working_dir)
+        full_instruction = _build_full_instruction(instruction, context, repo)
+
         logger.info("code_handler_start", task_id=task.id, instruction=instruction[:80])
 
         try:
-            result = await CodeTool().execute(instruction)
+            result = await CodeTool().execute(full_instruction)
             return HandlerResult(
                 task=task,
                 status="done" if result.success else "failed",

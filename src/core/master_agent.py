@@ -34,6 +34,9 @@ class MasterAgent:
 
     def __init__(self):
         self.state_manager = StateManager()
+        from src.memory.memory_store import MemoryStore
+
+        self.memory_store = MemoryStore()
 
     async def run_forever(self) -> None:
         """Initialise DB, register signal handlers, then run all agents."""
@@ -96,7 +99,9 @@ class MasterAgent:
         try:
             from src.agents.task_worker import TaskWorker
 
-            task_worker = TaskWorker(state_manager=self.state_manager)
+            task_worker = TaskWorker(
+                state_manager=self.state_manager, memory_store=self.memory_store
+            )
             coroutines.append(task_worker.run_forever(interval_seconds=5))
             logger.info("task_worker_registered")
         except ImportError:
@@ -107,7 +112,9 @@ class MasterAgent:
             from src.agents.telegram_agent import TelegramAgent
 
             if settings.telegram_bot_token and settings.telegram_owner_id:
-                telegram_agent = TelegramAgent(state_manager=self.state_manager)
+                telegram_agent = TelegramAgent(
+                    state_manager=self.state_manager, memory_store=self.memory_store
+                )
                 coroutines.append(telegram_agent.run_forever())
                 logger.info("telegram_agent_registered")
             else:
