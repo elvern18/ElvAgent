@@ -1,19 +1,18 @@
 # ElvAgent Status
 
 **Last Updated:** 2026-02-19
-**Phase:** Phase D — Memory Layer (complete) → End-to-end test + PR next
+**Phase:** PA Foundation — Phases A–D complete, PR open
 **Progress:** 376/376 tests passing
 
 ---
 
 ## Current Focus
 
-Phase D complete: short-term MemoryStore (1hr TTL per chat_id) + `/remember`/`/recall`
-wired to long-term SQLite `agent_facts`. CodeHandler now auto-injects conversation context
-and `default_repo` fact into every coding task.
+PR #2 is open: `pa/foundation → main` — full Phases A–D PA foundation.
+Awaiting review and merge, then manual Telegram smoke test.
 
 **Branch:** pa/foundation
-**Next:** End-to-end Telegram test, then open PR pa/foundation → main
+**Next:** Review/merge PR #2, then run Telegram smoke test
 
 ---
 
@@ -36,26 +35,26 @@ and `default_repo` fact into every coding task.
 
 ## What's Outstanding
 
-- End-to-end test — real Telegram `/code` with `default_repo` fact (needs .env)
-- PR pa/foundation → main (all phases A–D complete)
+- Merge PR #2 (pa/foundation → main)
+- Manual smoke: `/remember default_repo /home/elvern/ElvAgent` + `/code <task>` via Telegram
 - Phase E: x402 self-funding compute (deferred)
 - Twitter publisher (waiting API Elevated Access)
 - Discord publisher (needs webhook config)
 
 ## Recent Sessions
 
+- [2026-02-19-7](logs/2026-02-19-session-7.md): Confirm 376 tests pass, open PR #2
 - [2026-02-19-6](logs/2026-02-19-session-6.md): Commit Phase D code, Q&A on memory architecture
 - [2026-02-19-5](logs/2026-02-19-session-5.md): Phase D — MemoryStore + /remember /recall, 376 tests
 - [2026-02-19-4](logs/2026-02-19-session-4.md): Phase C — CodingTool complete, 330 tests
 - [2026-02-19-3](logs/2026-02-19-session-3.md): PA roadmap + Phase A + Phase B complete
-- [2026-02-19-2](logs/2026-02-19-session-2.md): Fix integration tests — all 228 green
 
 ## Quick Links
 
-- **Last Session:** [docs/logs/2026-02-19-session-6.md](logs/2026-02-19-session-6.md)
-- **Run PA:** `python src/main.py --mode=pa --verbose`
+- **Last Session:** [docs/logs/2026-02-19-session-7.md](logs/2026-02-19-session-7.md)
+- **PR #2:** https://github.com/elvern18/ElvAgent/pull/2
 - **Tests:** `pytest tests/ -v` (376/376 passing)
-- **Install daemon:** `chmod +x scripts/setup_systemd.sh && ./scripts/setup_systemd.sh`
+- **Run PA:** `python src/main.py --mode=pa --verbose`
 
 ## Platform Status
 
@@ -78,7 +77,7 @@ MasterAgent (--mode=pa)
   └─ TelegramAgent     → /code /newsletter /status /remember /recall
         └─ MemoryStore (shared) ← records user messages + prior context
 
-CodingTool: Haiku plan → Sonnet tool_use (read/write/shell) → pytest gate → pa/ branch → PR
+CodingTool: Haiku plan → Sonnet tool_use (read/write/shell) → pytest → pa/ branch → PR
 Memory:     /remember key val → agent_facts (SQLite) | MemoryStore (RAM, 1hr TTL)
 ```
 
@@ -89,4 +88,4 @@ Memory:     /remember key val → agent_facts (SQLite) | MemoryStore (RAM, 1hr T
 
 ---
 
-**Resume:** `Read docs/STATUS.md and docs/logs/2026-02-19-session-6.md, then end-to-end Telegram test + open PR pa/foundation → main`
+**Resume:** `Read docs/STATUS.md and docs/logs/2026-02-19-session-7.md, then merge PR #2`
