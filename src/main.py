@@ -37,10 +37,10 @@ async def run_test_cycle():
 
     # Initialize components
     researchers = [
-        ArXivResearcher(max_items=5),
-        HuggingFaceResearcher(max_items=5),
-        RedditResearcher(max_items=5),
-        TechCrunchResearcher(max_items=5),
+        ArXivResearcher(max_items=3),
+        HuggingFaceResearcher(max_items=3),
+        RedditResearcher(max_items=3),
+        TechCrunchResearcher(max_items=3),
     ]
     publishers = []  # Empty in test mode (no publishing)
     pipeline = ContentPipeline(state_manager)
