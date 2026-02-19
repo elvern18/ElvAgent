@@ -1,64 +1,66 @@
 # ElvAgent Status
 
 **Last Updated:** 2026-02-19
-**Phase:** Phase 4 - Autonomous GitHub Agent
-**Progress:** CI Green (all 228 tests passing)
+**Phase:** PA Foundation — Phases A–D + bug fixes complete
+**Progress:** 442/442 tests passing
 
 ---
 
 ## Current Focus
 
-Integration tests fixed — all 228 tests pass (10/10 integration). PR #1 ready to merge once CI re-runs green. Next: merge PR #1 then run live end-to-end test of GitHub Agent.
+Two real-world bugs fixed this session: token explosion in `/code` (9.7M tokens) and bad branch slugs containing `/home/elvern`. Clarification flow and smart routing also added and working.
 
-**Branch:** agent-1-data-layer
-**Next:** Push branch → wait for CI → merge PR #1 → live end-to-end test
+**Branch:** pa/foundation
+**Next:** Merge PR #2, then Telegram smoke test (`/remember default_repo /home/elvern/ElvAgent` + `/code <task>`)
 
 ---
 
 ## What's Working
 
 - Multi-source research (ArXiv, HuggingFace, Reddit, TechCrunch) ✅
-- Content pipeline (dedupe, filter, rank) ✅
-- ContentEnhancer (AI headlines, takeaways, formatting) ✅
 - Full orchestrator pipeline (research → enhance → publish → record) ✅
-- TelegramPublisher + MarkdownPublisher ✅
-- Database state tracking (SQLite + aiosqlite) ✅
-- CI/CD pipeline (lint + tests + secret scan) ✅
-- **228 tests passing** (218 unit + 10 integration) ✅
-- **AgentLoop ABC** (ReAct: poll→triage→act→record) ✅
-- **GitHubMonitor** (60s polling, event deduplication) ✅
-- **PRDescriber** (Claude Haiku, auto-generates PR descriptions) ✅
-- **CIFixer** (3-tier: ruff→Sonnet→alert; circuit breaker; log+annotation+file investigation) ✅
-- **CodeReviewer** (Claude Sonnet, idempotent via sentinel) ✅
+- TelegramAgent (/start /help /status /newsletter /code /remember /recall /new_chat) ✅
+- Smart free-text routing (Haiku classifier → code queue or Sonnet reply) ✅
+- Clarification flow (Haiku asks questions via Telegram before coding, 10-min timeout) ✅
+- Coding token explosion fixed (20K char caps + sliding window + excluded dirs) ✅
+- Branch slug now derived from raw user instruction (not enriched context prefix) ✅
+- Branch collision recovery (timestamp suffix retry on "already exists") ✅
+- TaskQueue (SQLite priority queue, waiting_clarification state) ✅
+- CodeTool (Haiku plan → Sonnet tool_use → pytest → branch → PR) ✅
+- MemoryStore (persistent per-chat context, cleared by /new_chat) ✅
+- agent_facts (long-term SQLite key/value via /remember /recall) ✅
+- FilesystemTool + ShellTool + GitTool ✅
+- GitHubMonitor + PRDescriber + CIFixer + CodeReviewer ✅
+- systemd service (scripts/elvagent.service + setup_systemd.sh) ✅
 
 ## What's Outstanding
 
-- Merge PR #1 to main (CI must re-run and pass)
-- Live end-to-end test (create broken PR, verify agent fixes it)
-- End-to-end Telegram newsletter test
-- Twitter publisher (waiting API Elevated Access)
+- Merge PR #2 (pa/foundation → main)
+- Telegram smoke test (end-to-end coding task)
+- Phase E: x402 self-funding compute (deferred)
+- Twitter publisher (waiting Elevated API access)
 - Discord publisher (needs webhook config)
 
 ## Recent Sessions
 
-- [2026-02-19-2](logs/2026-02-19-session-2.md): Fix 4 integration tests — all 228 tests green
-- [2026-02-19-1](logs/2026-02-19-session-1.md): Full GitHub Agent implemented + CIFixer enhanced
-- [2026-02-18-2](logs/2026-02-18-session-2.md): CI/CD complete + GitHub Agent planned
-- [2026-02-18-1](logs/2026-02-18-session-1.md): Orchestrator integration complete
-- [2026-02-17-2](logs/2026-02-17-session-2.md): ContentEnhancer complete + .env bug fix
+- [2026-02-19-8](logs/2026-02-19-session-8.md): Token explosion fix, slug bug, branch collision recovery
+- [2026-02-19-7](logs/2026-02-19-session-7.md): Confirm 376 tests pass, open PR #2
+- [2026-02-19-6](logs/2026-02-19-session-6.md): Commit Phase D code, Q&A on memory architecture
+- [2026-02-19-5](logs/2026-02-19-session-5.md): Phase D — MemoryStore + /remember /recall
+- [2026-02-19-4](logs/2026-02-19-session-4.md): Phase C — CodingTool complete
 
 ## Quick Links
 
-- **Last Session:** [docs/logs/2026-02-19-session-2.md](logs/2026-02-19-session-2.md)
-- **PR #1:** `gh pr view 1` (agent-1-data-layer → main)
-- **Run Agent:** `python src/main.py --mode=github-monitor --verbose --cycles=1`
-- **Tests:** `pytest tests/unit/ tests/integration/ -v` (228/228 passing)
+- **Last Session:** [docs/logs/2026-02-19-session-8.md](logs/2026-02-19-session-8.md)
+- **PR #2:** https://github.com/elvern18/ElvAgent/pull/2
+- **Tests:** `pytest tests/ -v` (442/442 passing)
+- **Run PA:** `python src/main.py --mode=pa --verbose`
 
 ## Platform Status
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| Telegram | ✅ | Enhanced AI categories |
+| Telegram | ✅ | Newsletter out + PA commands in |
 | Markdown | ✅ | Local file output |
 | Twitter | ⏸️ | Built, waiting API approval |
 | Discord | ⏳ | Needs webhook config |
@@ -67,14 +69,16 @@ Integration tests fixed — all 228 tests pass (10/10 integration). PR #1 ready 
 ## Architecture Summary
 
 ```
-GitHubMonitor (60s poll)
-  ├─ poll()    → list open PRs + check runs
-  ├─ triage()  → skip already-processed (github_events table)
-  ├─ act()     → PRDescriber | CIFixer (3-tier) | CodeReviewer
-  └─ record()  → github_events DB
+MasterAgent (--mode=pa)
+  ├─ NewsletterAgent   → Orchestrator every 55 min
+  ├─ GitHubMonitor     → PRDescriber | CIFixer | CodeReviewer
+  ├─ TaskWorker        → CodeHandler | NewsletterHandler | StatusHandler
+  │     └─ MemoryStore (shared) ← records assistant replies
+  └─ TelegramAgent     → /code /newsletter /status /remember /recall /new_chat
+        ├─ Haiku classifier → code queue or Sonnet conversation
+        └─ MemoryStore (shared) ← records user messages + prior context
 
-Newsletter Pipeline
-  Research (4 sources) → ContentPipeline → ContentEnhancer → Publishers
+CodingTool: Haiku clarify? → Haiku plan → Sonnet tool_use → pytest → pa/ branch → PR
 ```
 
 ## Budget Status
@@ -84,4 +88,4 @@ Newsletter Pipeline
 
 ---
 
-**Resume:** `Read docs/STATUS.md and docs/logs/2026-02-19-session-2.md, then push branch and merge PR #1`
+**Resume:** `Read docs/STATUS.md and docs/logs/2026-02-19-session-8.md, then merge PR #2`

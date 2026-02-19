@@ -84,6 +84,28 @@ class Settings(BaseSettings):
     max_fix_attempts: int = Field(3, description="Circuit breaker: max CIFixer pushes per PR")
     enable_github_agent: bool = Field(False, description="Enable GitHub monitoring agent")
 
+    # PA (Personal Assistant) settings
+    telegram_owner_id: int = Field(
+        default=0,
+        description="Your Telegram user ID — only this user can send commands to the PA bot",
+    )
+    pa_branch_prefix: str = Field(
+        default="pa",
+        description="Git branch prefix for PA coding tasks (e.g. pa/add-feature)",
+    )
+    pa_max_tool_iterations: int = Field(
+        default=30,
+        description="Max tool_use iterations per CodingTool execution",
+    )
+    pa_allowed_commands: list[str] = Field(
+        default=["pytest", "python", "ruff", "mypy", "git", "pip", "ls", "grep", "find", "cat"],
+        description="Shell commands the PA shell tool is permitted to run",
+    )
+    pa_working_dir: Path = Field(
+        default_factory=lambda: Path("/home/elvern"),
+        description="Root directory PA file/shell tools are restricted to",
+    )
+
     # Logging
     log_level: str = Field(default="INFO", description="Logging level")
 

@@ -37,10 +37,10 @@ async def run_test_cycle():
 
     # Initialize components
     researchers = [
-        ArXivResearcher(max_items=5),
-        HuggingFaceResearcher(max_items=5),
-        RedditResearcher(max_items=5),
-        TechCrunchResearcher(max_items=5),
+        ArXivResearcher(max_items=3),
+        HuggingFaceResearcher(max_items=3),
+        RedditResearcher(max_items=3),
+        TechCrunchResearcher(max_items=3),
     ]
     publishers = []  # Empty in test mode (no publishing)
     pipeline = ContentPipeline(state_manager)
@@ -134,6 +134,21 @@ async def run_production_cycle():
         logger.error("production_cycle_failed", error=result.error)
 
 
+async def run_pa_mode():
+    """Run ElvAgent as a fully autonomous Personal Assistant.
+
+    Starts the MasterAgent which runs all sub-agents concurrently:
+      - NewsletterAgent  : hourly AI news newsletter
+      - GitHubMonitor    : PR description, CI fixing, code review
+      - TaskWorker       : processes task queue (Phase B)
+      - TelegramAgent    : bidirectional Telegram commands (Phase B)
+    """
+    from src.core.master_agent import MasterAgent
+
+    master = MasterAgent()
+    await master.run_forever()
+
+
 async def run_github_monitor(max_cycles: int = 0):
     """Run the GitHub PR monitoring agent.
 
@@ -164,9 +179,12 @@ async def main():
     parser = argparse.ArgumentParser(description="ElvAgent - AI Newsletter Agent")
     parser.add_argument(
         "--mode",
-        choices=["test", "production", "github-monitor"],
+        choices=["test", "production", "github-monitor", "pa"],
         default="test",
-        help="Run mode: test (no publishing), production (full cycle), or github-monitor (PR agent)",
+        help=(
+            "Run mode: test (no publishing), production (full cycle), "
+            "github-monitor (PR agent), or pa (full personal assistant)"
+        ),
     )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument(
@@ -197,6 +215,8 @@ async def main():
             await run_test_cycle()
         elif args.mode == "github-monitor":
             await run_github_monitor(max_cycles=args.cycles)
+        elif args.mode == "pa":
+            await run_pa_mode()
         else:
             await run_production_cycle()
 

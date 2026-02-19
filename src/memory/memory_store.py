@@ -1,0 +1,76 @@
+"""
+MemoryStore — short-term per-chat conversation context with TTL expiry.
+
+Pure in-memory dict keyed by chat_id. No locks needed (single asyncio event loop).
+Each message has a timestamp; expired messages are pruned on access.
+"""
+
+import time
+from dataclasses import dataclass, field
+
+
+@dataclass
+class Message:
+    role: str  # "user" or "assistant"
+    content: str
+    ts: float = field(default_factory=lambda: time.time())
+
+    def to_dict(self) -> dict:
+        return {"role": self.role, "content": self.content, "ts": self.ts}
+
+
+class MemoryStore:
+    """
+    Per-chat conversation context, optionally with TTL expiry.
+
+    Used by TelegramAgent to store conversation turns per chat_id,
+    and by TaskWorker to record assistant replies back into the same context.
+
+    By default (ttl_seconds=None) messages are kept until explicitly cleared
+    via clear(chat_id).  Pass a positive integer to enable time-based expiry.
+    """
+
+    def __init__(self, ttl_seconds: int | None = None, max_messages: int = 50) -> None:
+        self._ttl = ttl_seconds
+        self._max = max_messages
+        self._store: dict[int, list[Message]] = {}
+
+    def add_message(self, chat_id: int, role: str, content: str) -> None:
+        """Append a message for chat_id, prune expired (if TTL set), then trim to max."""
+        msgs = self._store.setdefault(chat_id, [])
+        msgs.append(Message(role=role, content=content))
+        now = time.time()
+        active = self._active(chat_id, now)
+        if len(active) > self._max:
+            active = active[-self._max :]
+        self._store[chat_id] = active
+
+    def get_context(self, chat_id: int) -> list[Message]:
+        """Return a copy of non-expired messages for chat_id."""
+        return list(self._active(chat_id, time.time()))
+
+    def format_for_prompt(self, chat_id: int) -> str:
+        """
+        Format recent conversation as a text block for inclusion in prompts.
+
+        Returns empty string if no messages exist.
+        """
+        msgs = self._active(chat_id, time.time())
+        if not msgs:
+            return ""
+        lines = [f"[{m.role}] {m.content}" for m in msgs]
+        return "Recent conversation:\n" + "\n".join(lines)
+
+    def clear(self, chat_id: int) -> None:
+        """Remove all messages for the given chat_id."""
+        self._store.pop(chat_id, None)
+
+    def _active(self, chat_id: int, now: float) -> list[Message]:
+        """Return non-expired messages for chat_id (does not mutate store).
+
+        When ttl_seconds is None all stored messages are considered active.
+        """
+        msgs = self._store.get(chat_id, [])
+        if self._ttl is None:
+            return list(msgs)
+        return [m for m in msgs if now - m.ts < self._ttl]
