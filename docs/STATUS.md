@@ -1,64 +1,71 @@
 # ElvAgent Status
 
 **Last Updated:** 2026-02-19
-**Phase:** Phase 4 - Autonomous GitHub Agent
-**Progress:** CI Green (all 228 tests passing)
+**Phase:** Phase A — PA Foundation (complete) → Phase B next
+**Progress:** 259/259 tests passing
 
 ---
 
 ## Current Focus
 
-Integration tests fixed — all 228 tests pass (10/10 integration). PR #1 ready to merge once CI re-runs green. Next: merge PR #1 then run live end-to-end test of GitHub Agent.
+PA direction launched: ElvAgent evolving into a fully autonomous 24/7 Personal Assistant.
+Phase A (MasterAgent + TaskQueue + NewsletterAgent + systemd) complete.
+Next: Phase B — bidirectional Telegram interface (TelegramAgent + TaskWorker).
 
-**Branch:** agent-1-data-layer
-**Next:** Push branch → wait for CI → merge PR #1 → live end-to-end test
+**Branch:** pa/foundation
+**Next:** Implement TelegramAgent + TaskWorker, then test /start /status /help commands
 
 ---
 
 ## What's Working
 
 - Multi-source research (ArXiv, HuggingFace, Reddit, TechCrunch) ✅
-- Content pipeline (dedupe, filter, rank) ✅
-- ContentEnhancer (AI headlines, takeaways, formatting) ✅
+- Content pipeline (dedupe, filter, rank) + ContentEnhancer ✅
 - Full orchestrator pipeline (research → enhance → publish → record) ✅
 - TelegramPublisher + MarkdownPublisher ✅
 - Database state tracking (SQLite + aiosqlite) ✅
 - CI/CD pipeline (lint + tests + secret scan) ✅
-- **228 tests passing** (218 unit + 10 integration) ✅
-- **AgentLoop ABC** (ReAct: poll→triage→act→record) ✅
-- **GitHubMonitor** (60s polling, event deduplication) ✅
-- **PRDescriber** (Claude Haiku, auto-generates PR descriptions) ✅
-- **CIFixer** (3-tier: ruff→Sonnet→alert; circuit breaker; log+annotation+file investigation) ✅
-- **CodeReviewer** (Claude Sonnet, idempotent via sentinel) ✅
+- **259 tests passing** (228 legacy + 31 new) ✅
+- AgentLoop ABC (ReAct: poll→triage→act→record) ✅
+- GitHubMonitor + PRDescriber + CIFixer (3-tier) + CodeReviewer ✅
+- **MasterAgent** (asyncio.gather, SIGTERM/SIGINT graceful shutdown) ✅
+- **NewsletterAgent** (AgentLoop, triggers every 55 min) ✅
+- **TaskQueue** (SQLite priority queue, atomic pop) ✅
+- **--mode=pa** entry point (runs all agents concurrently) ✅
+- **systemd service** (scripts/elvagent.service + setup_systemd.sh) ✅
 
 ## What's Outstanding
 
-- Merge PR #1 to main (CI must re-run and pass)
-- Live end-to-end test (create broken PR, verify agent fixes it)
-- End-to-end Telegram newsletter test
+- Phase B: TelegramAgent (incoming commands, /start /status /newsletter /code)
+- Phase B: TaskWorker (AgentLoop processing task queue)
+- Phase C: CodingTool (two-phase Claude: Haiku plan → Sonnet execute → pa/ branch → PR)
+- Phase C: filesystem_tool, shell_tool, git_tool (all path-guarded to /home/elvern)
+- Phase D: Memory layer (short-term conversation context + long-term agent_facts)
+- Phase E: x402 wallet + balance monitoring (deferred, future discussion)
+- Live end-to-end test of GitHub Agent (create broken PR, verify fix)
 - Twitter publisher (waiting API Elevated Access)
 - Discord publisher (needs webhook config)
 
 ## Recent Sessions
 
-- [2026-02-19-2](logs/2026-02-19-session-2.md): Fix 4 integration tests — all 228 tests green
-- [2026-02-19-1](logs/2026-02-19-session-1.md): Full GitHub Agent implemented + CIFixer enhanced
+- [2026-02-19-3](logs/2026-02-19-session-3.md): PA roadmap planned + Phase A complete
+- [2026-02-19-2](logs/2026-02-19-session-2.md): Fix integration tests — all 228 green
+- [2026-02-19-1](logs/2026-02-19-session-1.md): Full GitHub Agent implemented
 - [2026-02-18-2](logs/2026-02-18-session-2.md): CI/CD complete + GitHub Agent planned
 - [2026-02-18-1](logs/2026-02-18-session-1.md): Orchestrator integration complete
-- [2026-02-17-2](logs/2026-02-17-session-2.md): ContentEnhancer complete + .env bug fix
 
 ## Quick Links
 
-- **Last Session:** [docs/logs/2026-02-19-session-2.md](logs/2026-02-19-session-2.md)
-- **PR #1:** `gh pr view 1` (agent-1-data-layer → main)
-- **Run Agent:** `python src/main.py --mode=github-monitor --verbose --cycles=1`
-- **Tests:** `pytest tests/unit/ tests/integration/ -v` (228/228 passing)
+- **Last Session:** [docs/logs/2026-02-19-session-3.md](logs/2026-02-19-session-3.md)
+- **Run PA:** `python src/main.py --mode=pa --verbose`
+- **Install daemon:** `chmod +x scripts/setup_systemd.sh && ./scripts/setup_systemd.sh`
+- **Tests:** `pytest tests/ -v` (259/259 passing)
 
 ## Platform Status
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| Telegram | ✅ | Enhanced AI categories |
+| Telegram | ✅ | Newsletter out; PA commands in (Phase B) |
 | Markdown | ✅ | Local file output |
 | Twitter | ⏸️ | Built, waiting API approval |
 | Discord | ⏳ | Needs webhook config |
@@ -67,14 +74,13 @@ Integration tests fixed — all 228 tests pass (10/10 integration). PR #1 ready 
 ## Architecture Summary
 
 ```
-GitHubMonitor (60s poll)
-  ├─ poll()    → list open PRs + check runs
-  ├─ triage()  → skip already-processed (github_events table)
-  ├─ act()     → PRDescriber | CIFixer (3-tier) | CodeReviewer
-  └─ record()  → github_events DB
+MasterAgent (--mode=pa)
+  ├─ NewsletterAgent   → Orchestrator every 55 min
+  ├─ GitHubMonitor     → PRDescriber | CIFixer | CodeReviewer
+  ├─ TaskWorker        → routes queue tasks (Phase B)
+  └─ TelegramAgent     → incoming DMs → TaskQueue (Phase B)
 
-Newsletter Pipeline
-  Research (4 sources) → ContentPipeline → ContentEnhancer → Publishers
+CodingTool (Phase C): Haiku plan → Sonnet execute → pytest → pa/ branch → PR
 ```
 
 ## Budget Status
@@ -84,4 +90,4 @@ Newsletter Pipeline
 
 ---
 
-**Resume:** `Read docs/STATUS.md and docs/logs/2026-02-19-session-2.md, then push branch and merge PR #1`
+**Resume:** `Read docs/STATUS.md and docs/logs/2026-02-19-session-3.md, then implement Phase B`
