@@ -44,15 +44,15 @@ and `default_repo` fact into every coding task.
 
 ## Recent Sessions
 
+- [2026-02-19-6](logs/2026-02-19-session-6.md): Commit Phase D code, Q&A on memory architecture
 - [2026-02-19-5](logs/2026-02-19-session-5.md): Phase D — MemoryStore + /remember /recall, 376 tests
 - [2026-02-19-4](logs/2026-02-19-session-4.md): Phase C — CodingTool complete, 330 tests
 - [2026-02-19-3](logs/2026-02-19-session-3.md): PA roadmap + Phase A + Phase B complete
 - [2026-02-19-2](logs/2026-02-19-session-2.md): Fix integration tests — all 228 green
-- [2026-02-19-1](logs/2026-02-19-session-1.md): Full GitHub Agent implemented
 
 ## Quick Links
 
-- **Last Session:** [docs/logs/2026-02-19-session-5.md](logs/2026-02-19-session-5.md)
+- **Last Session:** [docs/logs/2026-02-19-session-6.md](logs/2026-02-19-session-6.md)
 - **Run PA:** `python src/main.py --mode=pa --verbose`
 - **Tests:** `pytest tests/ -v` (376/376 passing)
 - **Install daemon:** `chmod +x scripts/setup_systemd.sh && ./scripts/setup_systemd.sh`
@@ -89,4 +89,4 @@ Memory:     /remember key val → agent_facts (SQLite) | MemoryStore (RAM, 1hr T
 
 ---
 
-**Resume:** `Read docs/STATUS.md and docs/logs/2026-02-19-session-5.md, then end-to-end test + open PR`
+**Resume:** `Read docs/STATUS.md and docs/logs/2026-02-19-session-6.md, then end-to-end Telegram test + open PR pa/foundation → main`
