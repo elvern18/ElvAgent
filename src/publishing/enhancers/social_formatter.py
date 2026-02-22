@@ -1,6 +1,6 @@
 """
 AI-powered social media message formatting.
-Creates visually appealing Telegram messages with proper hierarchy.
+Creates clean, scannable Telegram messages with proper hierarchy.
 """
 
 import json
@@ -9,6 +9,7 @@ from anthropic import AsyncAnthropic
 
 from src.config.settings import settings
 from src.models.enhanced_newsletter import EnhancedNewsletterItem
+from src.publishing.enhancers.voice import VOICE_ANTI_PATTERNS, VOICE_SYSTEM_PROMPT
 from src.utils.logger import get_logger
 
 logger = get_logger("enhancer.formatter")
@@ -18,55 +19,46 @@ class SocialFormatter:
     """
     Format category messages using Claude Haiku.
 
-    Creates visually appealing Telegram messages with proper
-    spacing, emojis, and hierarchy optimized for mobile reading.
+    Creates clean Telegram messages using the shared voice,
+    optimized for mobile reading.
     """
 
-    SYSTEM_PROMPT = """You format content for Telegram with perfect visual hierarchy.
-Your messages are scannable, engaging, and optimized for mobile reading."""
+    SYSTEM_PROMPT = f"""{VOICE_SYSTEM_PROMPT}
 
-    USER_PROMPT_TEMPLATE = """Format this category for Telegram:
+your job is formatting AI news categories for Telegram.
+write like you're texting someone. 2-3 short sentences for the lead story.
+supporting stories get one line each. keep it casual, not pitch-y."""
 
-Category: {category}
-Title: {title}
-Date: {date}
-Items: {items_json}
+    USER_PROMPT_TEMPLATE = f"""Format this category for Telegram:
 
-Requirements:
-1. Start with category title (bold)
-2. Add intro line if needed
-3. Number each item (1-5)
-4. For each item:
-   - Viral headline (bold)
-   - Takeaway on new line
-   - Engagement metrics (if available)
-   - Link with "🔗 Read more"
-5. Use proper spacing between items
-6. Markdown formatting (bold with *, links with [text](url))
-7. Professional but engaging tone
-8. End with separator line: ━━━━━━━━━━━━━━━━
+Category: {{category}}
+Title: {{title}}
+Date: {{date}}
+Items: {{items_json}}
 
-Example format:
+Format:
+1. Start with category title (e.g., "🔬 from the labs"). not bold, just emoji + lowercase.
+2. LEAD STORY (item #1): 2-3 short sentences like you're texting someone. use the headline + takeaway as inspiration but rephrase naturally. link on its own line with "→" prefix.
+3. SUPPORTING STORIES (items #2+): one line each, "→" prefix, casual description + (link). no label before them, just list them.
+4. End with: ━━━━━━━━━━━━━━━━
+5. Use Markdown links: [text](url)
+6. NO bold text, NO numbered lists
 
-**{title}**
+{VOICE_ANTI_PATTERNS}
 
-Top stories today:
+Example:
 
-1. **🔬 AI Achieves 10x Better Image Understanding**
-   💡 Why it matters: Makes SOTA models accessible to small teams
-   ☕ 5-min read · 234 comments
-   🔗 [Read more](url)
+🔬 from the labs
 
-2. **💰 Startup Raises $45M to Challenge OpenAI**
-   💡 Why it matters: Could accelerate competition in foundation models
-   ☕ 3-min read
-   🔗 [Read more](url)
+GUI agent that scales from 2B to 235B params. works across mobile, desktop, web. curious how well it actually generalizes.
+→ [link](url)
 
-[continue for all items...]
+→ new jailbreak benchmark for South Asian languages. most safety tests ignore these. ([link](url))
+→ fine-tuning vs prompting for text classification. prompting catching up faster than expected. ([link](url))
 
 ━━━━━━━━━━━━━━━━
 
-Return ONLY the formatted Telegram message. Use Markdown syntax. Keep it scannable and mobile-friendly."""
+Return ONLY the formatted message."""
 
     def __init__(self):
         """Initialize formatter with Anthropic client."""
@@ -162,27 +154,21 @@ Return ONLY the formatted Telegram message. Use Markdown syntax. Keep it scannab
             Formatted text string
         """
         lines = [
-            f"**{title}**",
+            title,
             "",
         ]
 
-        # Add items
-        for idx, item in enumerate(items, 1):
-            lines.append(f"{idx}. **{item.viral_headline}**")
-            lines.append(f"   {item.takeaway}")
+        # Lead story (first item gets special treatment)
+        if items:
+            lead = items[0]
+            lines.append(f"{lead.viral_headline}. {lead.takeaway}")
+            lines.append(f"→ [link]({lead.url})")
+            lines.append("")
 
-            # Add engagement metrics if available
-            if item.engagement_metrics:
-                metrics_parts = []
-                if "read_time" in item.engagement_metrics:
-                    metrics_parts.append(item.engagement_metrics["read_time"])
-                if "engagement" in item.engagement_metrics:
-                    metrics_parts.append(item.engagement_metrics["engagement"])
-
-                if metrics_parts:
-                    lines.append(f"   {' · '.join(metrics_parts)}")
-
-            lines.append(f"   🔗 [Read more]({item.url})")
+        # Supporting stories
+        if len(items) > 1:
+            for item in items[1:]:
+                lines.append(f"→ {item.viral_headline} ([link]({item.url}))")
             lines.append("")
 
         # Add separator

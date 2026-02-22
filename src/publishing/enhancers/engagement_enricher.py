@@ -48,8 +48,7 @@ class EngagementEnricher:
         elif item.source == "arxiv":
             metrics = self._extract_arxiv_metrics(metadata)
 
-        # Add read time estimate
-        metrics["read_time"] = self._estimate_read_time(item.summary)
+        # Read time removed — it's always "1 min" based on summary length, adds no value
 
         logger.debug("metrics_enriched", source=item.source, metrics=metrics)
 
@@ -83,10 +82,11 @@ class EngagementEnricher:
             else:
                 metrics["engagement"] = f"💬 {num_comments} comments"
 
-        # ArXiv ID for paper reference
+        # ArXiv ID for paper reference (clean ID for inline use)
         arxiv_id = metadata.get("arxiv_id", "")
         if arxiv_id:
-            metrics["arxiv"] = arxiv_id
+            clean_id = arxiv_id.replace("https://arxiv.org/abs/", "").replace("arxiv:", "")
+            metrics["arxiv"] = clean_id
 
         return metrics
 
@@ -111,10 +111,12 @@ class EngagementEnricher:
         """Extract ArXiv-specific metrics."""
         metrics = {}
 
-        # ArXiv ID
+        # ArXiv ID (formatted as just the ID for inline use)
         arxiv_id = metadata.get("arxiv_id", "")
         if arxiv_id:
-            metrics["arxiv"] = arxiv_id
+            # Strip any prefix, keep just the ID
+            clean_id = arxiv_id.replace("https://arxiv.org/abs/", "").replace("arxiv:", "")
+            metrics["arxiv"] = clean_id
 
         # Authors
         authors = metadata.get("authors", [])
@@ -169,10 +171,6 @@ class EngagementEnricher:
 
         if "flair" in metrics:
             parts.append(f"[{metrics['flair']}]")
-
-        # Add read time (always present)
-        if "read_time" in metrics:
-            parts.append(metrics["read_time"])
 
         # Add author if notable
         if "author" in metrics:
