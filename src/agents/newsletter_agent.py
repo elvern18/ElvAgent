@@ -21,8 +21,8 @@ from src.publishing.telegram_publisher import TelegramPublisher
 from src.publishing.twitter_publisher import TwitterPublisher
 from src.research.arxiv_researcher import ArXivResearcher
 from src.research.huggingface_researcher import HuggingFaceResearcher
-from src.research.reddit_researcher import RedditResearcher
 from src.research.techcrunch_researcher import TechCrunchResearcher
+from src.research.venturebeat_researcher import VentureBeatResearcher
 from src.utils.logger import get_logger
 
 logger = get_logger("newsletter_agent")
@@ -57,7 +57,7 @@ class NewsletterAgent(AgentLoop):
         researchers = [
             ArXivResearcher(max_items=5),
             HuggingFaceResearcher(max_items=5),
-            RedditResearcher(max_items=5),
+            VentureBeatResearcher(max_items=5),
             TechCrunchResearcher(max_items=5),
         ]
         publishers = [

@@ -3,7 +3,7 @@
 Test ContentEnhancer with real sources.
 
 Validates that ContentEnhancer works end-to-end with real content
-from ArXiv, HuggingFace, Reddit, and TechCrunch.
+from ArXiv, HuggingFace, VentureBeat, and TechCrunch.
 """
 import sys
 from pathlib import Path
@@ -21,8 +21,8 @@ from src.core.state_manager import StateManager
 from src.publishing.content_enhancer import ContentEnhancer
 from src.research.arxiv_researcher import ArXivResearcher
 from src.research.huggingface_researcher import HuggingFaceResearcher
-from src.research.reddit_researcher import RedditResearcher
 from src.research.techcrunch_researcher import TechCrunchResearcher
+from src.research.venturebeat_researcher import VentureBeatResearcher
 from src.utils.logger import get_logger
 
 logger = get_logger("test.enhancer_real")
@@ -42,7 +42,7 @@ async def main():
     researchers = [
         ArXivResearcher(),
         HuggingFaceResearcher(),
-        RedditResearcher(),
+        VentureBeatResearcher(),
         TechCrunchResearcher()
     ]
     pipeline = ContentPipeline(state_manager)
