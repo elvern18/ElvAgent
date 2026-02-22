@@ -1,14 +1,14 @@
 # ElvAgent Status
 
-**Last Updated:** 2026-02-20
-**Phase:** PA Foundation — merged to main, ready for smoke testing
-**Progress:** 442/442 tests passing
+**Last Updated:** 2026-02-22
+**Phase:** PA Foundation — merged to main, source swap complete
+**Progress:** 440/440 tests passing
 
 ---
 
 ## Current Focus
 
-PR #2 merged (pa/foundation → main). README rewritten for general AI agent identity. Next step is a real Telegram smoke test.
+Swapped Reddit → VentureBeat as 4th research source. VentureBeat has editorial oversight and covers enterprise AI news. Next step is Telegram smoke test.
 
 **Branch:** main
 **Next:** Telegram smoke test (`/remember default_repo /home/elvern/ElvAgent` + `/code <task>`)
@@ -17,7 +17,7 @@ PR #2 merged (pa/foundation → main). README rewritten for general AI agent ide
 
 ## What's Working
 
-- Multi-source research (ArXiv, HuggingFace, Reddit, TechCrunch) ✅
+- Multi-source research (ArXiv, HuggingFace, VentureBeat, TechCrunch) ✅
 - Full orchestrator pipeline (research → enhance → publish → record) ✅
 - TelegramAgent (/start /help /status /newsletter /code /remember /recall /new_chat) ✅
 - Smart free-text routing (Haiku classifier → code queue or Sonnet reply) ✅
@@ -39,16 +39,16 @@ PR #2 merged (pa/foundation → main). README rewritten for general AI agent ide
 
 ## Recent Sessions
 
+- [2026-02-22-1](logs/2026-02-22-session-1.md): Replace Reddit with VentureBeat researcher
 - [2026-02-20-1](logs/2026-02-20-session-1.md): README rewrite, PR #2 merged to main
 - [2026-02-19-8](logs/2026-02-19-session-8.md): Token explosion fix, slug bug, branch collision recovery
 - [2026-02-19-7](logs/2026-02-19-session-7.md): Confirm 376 tests pass, open PR #2
 - [2026-02-19-6](logs/2026-02-19-session-6.md): Commit Phase D code, Q&A on memory architecture
-- [2026-02-19-5](logs/2026-02-19-session-5.md): Phase D — MemoryStore + /remember /recall
 
 ## Quick Links
 
-- **Last Session:** [docs/logs/2026-02-20-session-1.md](logs/2026-02-20-session-1.md)
-- **Tests:** `pytest tests/ -v` (442/442 passing)
+- **Last Session:** [docs/logs/2026-02-22-session-1.md](logs/2026-02-22-session-1.md)
+- **Tests:** `pytest tests/ -v` (440/440 passing)
 - **Run PA:** `python src/main.py --mode=pa --verbose`
 
 ## Platform Status
@@ -83,4 +83,4 @@ CodingTool: Haiku clarify? → Haiku plan → Sonnet tool_use → pytest → pa/
 
 ---
 
-**Resume:** `Read docs/STATUS.md and docs/logs/2026-02-20-session-1.md, then run Telegram smoke test`
+**Resume:** `Read docs/STATUS.md and docs/logs/2026-02-22-session-1.md, then run Telegram smoke test`

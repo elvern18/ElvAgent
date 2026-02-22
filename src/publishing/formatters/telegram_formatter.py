@@ -3,8 +3,11 @@ Telegram formatter for converting newsletters to Telegram messages.
 Uses Telegram's markdown formatting.
 """
 
+import random
+
 from src.models.enhanced_newsletter import CategoryMessage
 from src.models.newsletter import Newsletter
+from src.publishing.enhancers.voice import INTRO_LINES
 from src.publishing.formatters.base_formatter import BaseFormatter
 
 
@@ -194,21 +197,18 @@ class TelegramFormatter(BaseFormatter):
         """
         parts = []
 
-        # Header
-        parts.append("🤖 *AI News Update*")
+        # Dynamic intro line picked from pool
+        intro = random.choice(INTRO_LINES)
+        parts.append(intro)
         parts.append("")
 
         # Add each category (already formatted by SocialFormatter)
         for msg in category_messages:
-            # SocialFormatter outputs basic Markdown, which is compatible with MarkdownV2
-            # We'll use it as-is since the AI should handle special characters properly
             parts.append(msg.formatted_text)
             parts.append("")
 
         # Footer
-        parts.append("━━━━━━━━━━━━━━━━━")
-        parts.append("🤖 *Powered by ElvAgent*")
-        parts.append("Automated AI news delivered hourly")
+        parts.append("— follow for daily AI drops 🤖")
 
         # Join and split at 4096 char limit
         full_message = "\n".join(parts)

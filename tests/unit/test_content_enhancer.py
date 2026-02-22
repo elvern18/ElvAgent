@@ -27,15 +27,15 @@ def mock_enhancers(monkeypatch):
 
     # Mock HeadlineWriter
     async def mock_generate_headline(self, item, timeout=30):
-        return (f"🔬 Mocked: {item.title[:30]}", 0.0025)
+        return (f"🔬 mocked: {item.title[:30]}", 0.0025)
 
     # Mock TakeawayGenerator
     async def mock_generate_takeaway(self, item, headline, timeout=30):
-        return ("💡 Why it matters: Mocked takeaway", 0.0012)
+        return ("interesting approach. worth watching.", 0.0012)
 
     # Mock EngagementEnricher
     def mock_enrich_metrics(self, item):
-        return {"read_time": "☕ 3-min read"}
+        return {}
 
     # Mock SocialFormatter
     async def mock_format_category(self, category, title, items, date, timeout=30):
@@ -115,10 +115,10 @@ async def test_enhance_newsletter_partial_failure(
         return (f"🔬 Mocked: {item.title[:30]}", 0.0025)
 
     async def mock_generate_takeaway(self, item, headline, timeout=30):
-        return ("💡 Why it matters: Mocked takeaway", 0.0012)
+        return ("interesting approach. worth watching.", 0.0012)
 
     def mock_enrich_metrics(self, item):
-        return {"read_time": "☕ 3-min read"}
+        return {}
 
     async def mock_format_category(self, category, title, items, date, timeout=30):
         return (f"**{title}**", 0.0008)
@@ -167,7 +167,7 @@ async def test_enhance_newsletter_all_template(
         raise Exception("API error")
 
     def mock_enrich_metrics(self, item):
-        return {"read_time": "☕ 3-min read"}
+        return {}
 
     async def mock_format_category(self, category, title, items, date, timeout=30):
         return (f"**{title}**", 0.0008)
@@ -221,10 +221,10 @@ async def test_enhance_single_item_retry_logic(
 
     async def mock_generate_takeaway(self, item, headline, timeout=30):
         attempts["takeaway"] += 1
-        return ("💡 Why it matters: Success", 0.0012)
+        return ("interesting. worth watching.", 0.0012)
 
     def mock_enrich_metrics(self, item):
-        return {"read_time": "☕ 3-min read"}
+        return {}
 
     async def mock_format_category(self, category, title, items, date, timeout=30):
         return (f"**{title}**", 0.0008)

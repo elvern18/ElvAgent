@@ -13,8 +13,8 @@ sys.path.insert(0, str(project_root))
 
 from src.research.arxiv_researcher import ArXivResearcher
 from src.research.huggingface_researcher import HuggingFaceResearcher
-from src.research.reddit_researcher import RedditResearcher
 from src.research.techcrunch_researcher import TechCrunchResearcher
+from src.research.venturebeat_researcher import VentureBeatResearcher
 
 
 async def test_multi_source():
@@ -27,7 +27,7 @@ async def test_multi_source():
     researchers = [
         ArXivResearcher(max_items=5),
         HuggingFaceResearcher(max_items=5),
-        RedditResearcher(max_items=5),
+        VentureBeatResearcher(max_items=5),
         TechCrunchResearcher(max_items=5),
     ]
 

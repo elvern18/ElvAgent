@@ -19,11 +19,11 @@ def mock_anthropic_api(monkeypatch):
 
     # Mock HeadlineWriter
     async def mock_generate_headline(self, item, timeout=30):
-        return (f"🔬 Enhanced: {item.title[:40]}", 0.0025)
+        return (f"🔬 {item.title[:40].lower()}", 0.0025)
 
     # Mock TakeawayGenerator
     async def mock_generate_takeaway(self, item, headline, timeout=30):
-        return ("💡 Why it matters: This is important for AI development", 0.0012)
+        return ("interesting for AI development. worth watching.", 0.0012)
 
     # Mock SocialFormatter
     async def mock_format_category(self, category, title, items, date, timeout=30):
@@ -141,11 +141,11 @@ async def test_enhancement_with_failures_still_publishes(
         call_count["headline"] += 1
         if call_count["headline"] % 2 == 0:  # Every 2nd call fails
             raise Exception("API error")
-        return (f"🔬 Enhanced: {item.title[:40]}", 0.0025)
+        return (f"🔬 {item.title[:40].lower()}", 0.0025)
 
     async def mock_generate_takeaway(self, item, headline, timeout=30):
         call_count["takeaway"] += 1
-        return ("💡 Why it matters: Test takeaway", 0.0012)
+        return ("interesting approach. worth watching.", 0.0012)
 
     async def mock_format_category(self, category, title, items, date, timeout=30):
         return (f"**{title}**\n\nFormatted content", 0.0008)

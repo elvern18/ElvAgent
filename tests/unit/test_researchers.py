@@ -8,8 +8,8 @@ import httpx
 import pytest
 
 from src.research.huggingface_researcher import HuggingFaceResearcher
-from src.research.reddit_researcher import RedditResearcher
 from src.research.techcrunch_researcher import TechCrunchResearcher
+from src.research.venturebeat_researcher import VentureBeatResearcher
 
 # --- Fixtures ---
 
@@ -208,107 +208,83 @@ class TestHuggingFaceResearcher:
                 await r.fetch_content()
 
 
-# === RedditResearcher Tests ===
+# === VentureBeatResearcher Tests ===
 
 
 @pytest.mark.unit
-class TestRedditResearcher:
+class TestVentureBeatResearcher:
     def test_score_base(self):
-        r = RedditResearcher()
-        assert r.score_relevance({"title": "Boring", "summary": "", "flair": ""}) == 5
+        r = VentureBeatResearcher()
+        assert r.score_relevance({"title": "Random article", "summary": ""}) == 5
 
-    def test_score_research_flair(self):
-        r = RedditResearcher()
-        assert r.score_relevance({"title": "A paper", "summary": "", "flair": "R"}) >= 7
+    def test_score_major_company(self):
+        r = VentureBeatResearcher()
+        score = r.score_relevance({"title": "OpenAI news", "summary": ""})
+        assert score >= 7
 
-    def test_score_project_flair(self):
-        r = RedditResearcher()
-        assert r.score_relevance({"title": "My project", "summary": "", "flair": "P"}) >= 7
+    def test_score_large_funding(self):
+        r = VentureBeatResearcher()
+        score = r.score_relevance({"title": "Startup raises $100 million", "summary": ""})
+        assert score >= 7
 
-    def test_score_news_flair(self):
-        r = RedditResearcher()
-        assert r.score_relevance({"title": "News item", "summary": "", "flair": "N"}) >= 6
+    def test_score_launch_keywords(self):
+        r = VentureBeatResearcher()
+        score = r.score_relevance({"title": "Company launches new product", "summary": ""})
+        assert score >= 7
 
-    def test_score_meme_penalty(self):
-        r = RedditResearcher()
-        score = r.score_relevance({"title": "Funny meme lol", "summary": "", "flair": ""})
-        assert score <= 2
+    def test_score_opinion_penalty(self):
+        r = VentureBeatResearcher()
+        score = r.score_relevance({"title": "Opinion editorial on AI", "summary": ""})
+        assert score <= 5
 
-    def test_score_career_penalty(self):
-        r = RedditResearcher()
-        score = r.score_relevance({"title": "Career salary advice", "summary": "", "flair": ""})
-        assert score <= 4
+    def test_detect_category_funding(self):
+        r = VentureBeatResearcher()
+        assert r._detect_category({"title": "Startup raises $50M", "summary": ""}) == "funding"
 
-    def test_score_high_impact(self):
-        r = RedditResearcher()
-        score = r.score_relevance({"title": "Claude breakthrough", "summary": "", "flair": "R"})
-        assert score >= 9
+    def test_detect_category_product(self):
+        r = VentureBeatResearcher()
+        assert (
+            r._detect_category({"title": "Company launches new tool", "summary": ""}) == "product"
+        )
 
-    def test_get_category_from_flair(self):
-        r = RedditResearcher()
-        assert r._get_category_from_flair("R") == "research"
-        assert r._get_category_from_flair("D") == "news"
-        assert r._get_category_from_flair("P") == "product"
-        assert r._get_category_from_flair("N") == "news"
-        assert r._get_category_from_flair("X") == "news"
+    def test_detect_category_regulation(self):
+        r = VentureBeatResearcher()
+        assert (
+            r._detect_category({"title": "New AI regulation policy", "summary": ""}) == "regulation"
+        )
 
-    def test_parse_entry_strips_flair(self):
-        r = RedditResearcher()
-        entry = _make_rss_entry(title="[R] A New Transformer Model")
-        result = r._parse_entry(entry)
-        assert result["flair"] == "R"
-        assert result["title"] == "A New Transformer Model"
-
-    def test_parse_entry_no_flair(self):
-        r = RedditResearcher()
-        entry = _make_rss_entry(title="Just a plain title")
-        result = r._parse_entry(entry)
-        assert result["flair"] == ""
-        assert result["title"] == "Just a plain title"
+    def test_detect_category_default(self):
+        r = VentureBeatResearcher()
+        assert r._detect_category({"title": "Something else", "summary": ""}) == "news"
 
     def test_parse_entry_strips_html(self):
-        r = RedditResearcher()
-        entry = _make_rss_entry(summary="<p>Hello <b>world</b></p>")
+        r = VentureBeatResearcher()
+        entry = _make_tc_entry(summary="<p>Hello <a href='x'>link</a></p>")
         result = r._parse_entry(entry)
         assert "<" not in result["summary"]
 
     @pytest.mark.asyncio
     async def test_fetch_content_returns_items(self):
-        r = RedditResearcher()
-        mock_client, mock_response = _httpx_mock(content=b"<rss/>")
+        r = VentureBeatResearcher()
+        mock_client, _ = _httpx_mock(content=b"<rss/>")
         mock_feed = MagicMock()
         mock_feed.entries = [
-            _make_rss_entry(title="[R] LLM transformer breakthrough"),
+            _make_tc_entry(title="OpenAI launches new GPT model"),
         ]
         with (
             patch("httpx.AsyncClient", return_value=mock_client),
-            patch("src.research.reddit_researcher.feedparser.parse", return_value=mock_feed),
+            patch("src.research.venturebeat_researcher.feedparser.parse", return_value=mock_feed),
         ):
             items = await r.fetch_content()
         assert len(items) >= 1
-        assert items[0].source == "reddit"
-
-    @pytest.mark.asyncio
-    async def test_fetch_content_filters_memes(self):
-        r = RedditResearcher()
-        mock_client, mock_response = _httpx_mock(content=b"<rss/>")
-        mock_feed = MagicMock()
-        mock_feed.entries = [
-            _make_rss_entry(title="Funny meme joke lol"),
-        ]
-        with (
-            patch("httpx.AsyncClient", return_value=mock_client),
-            patch("src.research.reddit_researcher.feedparser.parse", return_value=mock_feed),
-        ):
-            items = await r.fetch_content()
-        assert len(items) == 0
+        assert items[0].source == "venturebeat"
 
     @pytest.mark.asyncio
     async def test_fetch_content_http_error(self):
-        r = RedditResearcher()
+        r = VentureBeatResearcher()
         mock_client, mock_response = _httpx_mock(content=b"")
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "500", request=MagicMock(), response=MagicMock()
+            "503", request=MagicMock(), response=MagicMock()
         )
         with patch("httpx.AsyncClient", return_value=mock_client):
             with pytest.raises(httpx.HTTPStatusError):

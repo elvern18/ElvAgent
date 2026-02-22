@@ -206,25 +206,25 @@ def sample_enhanced_items(sample_newsletter_items):
     return [
         EnhancedNewsletterItem(
             original_item=sample_newsletter_items[0],
-            viral_headline="🔬 AI Breakthrough: New Transformer Cuts Training Time by 90%",
-            takeaway="💡 Why it matters: Makes state-of-the-art models accessible to small research teams",
-            engagement_metrics={"read_time": "☕ 5-min read", "authors": "John Doe et al."},
+            viral_headline="🔬 new transformer architecture that cuts training time by 90%",
+            takeaway="could make SOTA models accessible to small research teams. probably.",
+            engagement_metrics={"authors": "John Doe et al."},
             enhancement_method="ai",
             enhancement_cost=0.0025,
         ),
         EnhancedNewsletterItem(
             original_item=sample_newsletter_items[1],
-            viral_headline="🚀 OpenAI's GPT-5: First AI That Truly Reasons Like Humans",
-            takeaway="💡 Why it matters: Represents major leap in AI capabilities and practical applications",
-            engagement_metrics={"read_time": "☕ 3-min read"},
+            viral_headline="🚀 GPT-5 dropped with actual reasoning capabilities",
+            takeaway="matters for anyone building AI products right now.",
+            engagement_metrics={},
             enhancement_method="ai",
             enhancement_cost=0.0028,
         ),
         EnhancedNewsletterItem(
             original_item=sample_newsletter_items[2],
-            viral_headline="💰 Anthropic Raises $500M to Challenge OpenAI Dominance",
-            takeaway="💡 Why it matters: Accelerates competition in foundation models market",
-            engagement_metrics={"read_time": "☕ 2-min read", "author": "TechCrunch"},
+            viral_headline="💰 Anthropic raised another $500M",
+            takeaway="competition in foundation models is heating up. hard to ignore.",
+            engagement_metrics={"author": "TechCrunch"},
             enhancement_method="ai",
             enhancement_cost=0.0022,
         ),
@@ -248,9 +248,9 @@ def sample_category_messages(sample_enhanced_items):
             CategoryMessage(
                 category="research",
                 emoji="🔬",
-                title="🔬 RESEARCH HIGHLIGHTS - 2026-02-15",
+                title="🔬 from the labs",
                 items=research_items,
-                formatted_text="**🔬 RESEARCH HIGHLIGHTS**\n\n1. **🔬 AI Breakthrough: New Transformer Cuts Training Time by 90%**\n   💡 Why it matters: Makes state-of-the-art models accessible to small research teams\n   ☕ 5-min read · John Doe et al.\n   🔗 [Read more](https://arxiv.org/abs/2024.12345)\n\n━━━━━━━━━━━━━━━━",
+                formatted_text="🔬 from the labs\n\nnew transformer architecture that cuts training time by 90%. could make SOTA models accessible to small research teams. probably.\n→ [arxiv.org/abs/2024.12345](https://arxiv.org/abs/2024.12345)\n\n━━━━━━━━━━━━━━━━",
             )
         )
 
@@ -259,9 +259,9 @@ def sample_category_messages(sample_enhanced_items):
             CategoryMessage(
                 category="product",
                 emoji="🚀",
-                title="🚀 NEW LAUNCHES - 2026-02-15",
+                title="🚀 shipped",
                 items=product_items,
-                formatted_text="**🚀 NEW LAUNCHES**\n\n1. **🚀 OpenAI's GPT-5: First AI That Truly Reasons Like Humans**\n   💡 Why it matters: Represents major leap in AI capabilities and practical applications\n   ☕ 3-min read\n   🔗 [Read more](https://openai.com/gpt5)\n\n━━━━━━━━━━━━━━━━",
+                formatted_text="🚀 shipped\n\nGPT-5 dropped with actual reasoning capabilities. matters for anyone building AI products right now.\n→ [openai.com/gpt5](https://openai.com/gpt5)\n\n━━━━━━━━━━━━━━━━",
             )
         )
 
@@ -270,9 +270,9 @@ def sample_category_messages(sample_enhanced_items):
             CategoryMessage(
                 category="funding",
                 emoji="💰",
-                title="💰 FUNDING ROUNDUP - 2026-02-15",
+                title="💰 money moves",
                 items=funding_items,
-                formatted_text="**💰 FUNDING ROUNDUP**\n\n1. **💰 Anthropic Raises $500M to Challenge OpenAI Dominance**\n   💡 Why it matters: Accelerates competition in foundation models market\n   ☕ 2-min read · TechCrunch\n   🔗 [Read more](https://techcrunch.com/funding)\n\n━━━━━━━━━━━━━━━━",
+                formatted_text="💰 money moves\n\nAnthropic raised another $500M. competition in foundation models is heating up. hard to ignore.\n→ [techcrunch.com/funding](https://techcrunch.com/funding)\n\n━━━━━━━━━━━━━━━━",
             )
         )
 

@@ -1,12 +1,13 @@
 """
-AI-powered "Why it matters" insight generation.
-Creates concise, relatable takeaways for each news item.
+AI-powered takeaway generation.
+Creates concise, think-out-loud reactions for each news item.
 """
 
 from anthropic import AsyncAnthropic
 
 from src.config.settings import settings
 from src.models.newsletter import NewsletterItem
+from src.publishing.enhancers.voice import VOICE_ANTI_PATTERNS, VOICE_SYSTEM_PROMPT
 from src.utils.logger import get_logger
 
 logger = get_logger("enhancer.takeaway")
@@ -14,54 +15,41 @@ logger = get_logger("enhancer.takeaway")
 
 class TakeawayGenerator:
     """
-    Generate "why it matters" insights using Claude Haiku.
+    Generate one-sentence takeaways using Claude Haiku.
 
-    Creates brief, impactful explanations of real-world significance
-    for technical content.
+    Creates brief, natural reactions using the shared voice.
     """
 
-    SYSTEM_PROMPT = """You generate concise "why it matters" insights for AI/tech news.
-Your insights explain real-world impact in plain language."""
+    SYSTEM_PROMPT = f"""{VOICE_SYSTEM_PROMPT}
 
-    USER_PROMPT_TEMPLATE = """Generate a one-sentence takeaway explaining why this matters:
+your job is reacting to AI news in one sentence.
+think out loud. no formulaic openers. just say what you actually think."""
 
-Headline: {headline}
-Summary: {summary}
-Category: {category}
+    USER_PROMPT_TEMPLATE = f"""React to this AI news in one sentence:
 
-Format: "💡 Why it matters: [insight]"
+Headline: {{headline}}
+Summary: {{summary}}
+Category: {{category}}
 
-Requirements:
-- One sentence only
-- Under 25 words
-- Focus on real-world impact, not technical details
-- Make it relatable to practitioners/businesses
-- Avoid jargon and acronyms
-- Be specific, not generic
+Rules:
+- one sentence, under 30 words
+- react like you're thinking out loud
+- no formulaic openers
+- admit uncertainty if you're not sure ("not sure about this but", "probably")
+- be specific, not generic
 
-Examples by category:
+Examples:
+- "could cut training costs for small teams. that's the actual unlock here."
+- "not sure this generalizes but the approach is interesting."
+- "basically means you can run this on a laptop now. probably."
+- "more money into India. pattern is getting hard to ignore."
+- "sounds good in theory. want to see real benchmarks."
+- "niche but hospitals actually need this."
+- "interesting for linguistics research. not sure who else cares."
 
-[research]
-"💡 Why it matters: Could cut medical AI training time from months to weeks"
-"💡 Why it matters: Makes state-of-the-art models accessible to small teams"
+{VOICE_ANTI_PATTERNS}
 
-[funding]
-"💡 Why it matters: Validates market demand for AI infrastructure solutions"
-"💡 Why it matters: Could accelerate competition with established AI giants"
-
-[news]
-"💡 Why it matters: Sets legal precedent for AI-generated content rights"
-"💡 Why it matters: Signals major shift in how tech giants approach AI"
-
-[product]
-"💡 Why it matters: Democratizes tools previously available only to big tech"
-"💡 Why it matters: Solves the biggest pain point in ML deployment"
-
-[regulation]
-"💡 Why it matters: Will reshape how AI companies operate in Europe"
-"💡 Why it matters: First major regulation addressing AI transparency"
-
-Return ONLY the formatted takeaway starting with "💡 Why it matters:". No quotes, no explanation."""
+Return ONLY the reaction. No quotes, no explanation."""
 
     def __init__(self):
         """Initialize takeaway generator with Anthropic client."""
@@ -98,7 +86,7 @@ Return ONLY the formatted takeaway starting with "💡 Why it matters:". No quot
             # Call Claude API
             response = await self.client.messages.create(
                 model=self.model,
-                max_tokens=60,
+                max_tokens=80,
                 system=self.SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
                 timeout=timeout,

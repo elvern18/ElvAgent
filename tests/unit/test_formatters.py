@@ -329,11 +329,9 @@ class TestTelegramFormatterEnhanced:
 
         # Verify content
         full_text = "\n".join(result)
-        assert "🤖 *AI News Update*" in full_text
-        assert "Powered by ElvAgent" in full_text
+        assert "follow for daily AI drops" in full_text
 
         # Verify category content included
-        # Note: formatted_text is already included, so check for presence
         assert len(full_text) > 100  # Should have substantial content
 
     def test_format_enhanced_multiple_categories(self, sample_category_messages):
@@ -377,8 +375,8 @@ class TestTelegramFormatterEnhanced:
 
         enhanced_item = EnhancedNewsletterItem(
             original_item=item,
-            viral_headline="🔬 Test Headline",
-            takeaway="💡 Why it matters: Test",
+            viral_headline="🔬 test headline",
+            takeaway="this is huge — test",
             engagement_metrics={},
             enhancement_method="ai",
             enhancement_cost=0.0,
@@ -387,7 +385,7 @@ class TestTelegramFormatterEnhanced:
         category_msg = CategoryMessage(
             category="research",
             emoji="🔬",
-            title="🔬 RESEARCH",
+            title="🔬 from the labs",
             items=[enhanced_item],
             formatted_text=long_text,
         )
@@ -412,8 +410,7 @@ class TestTelegramFormatterEnhanced:
         assert len(result) >= 1
 
         full_text = "\n".join(result)
-        assert "🤖 *AI News Update*" in full_text
-        assert "Powered by ElvAgent" in full_text
+        assert "follow for daily AI drops" in full_text
 
     def test_format_enhanced_includes_header_footer(self, sample_category_messages):
         """Test that header and footer are included."""
@@ -422,13 +419,13 @@ class TestTelegramFormatterEnhanced:
         result = formatter.format_enhanced(sample_category_messages)
         full_text = "\n".join(result)
 
-        # Check header
-        assert "🤖 *AI News Update*" in full_text
+        # Check intro line (dynamic, from INTRO_LINES pool)
+        from src.publishing.enhancers.voice import INTRO_LINES
+
+        assert any(line in full_text for line in INTRO_LINES)
 
         # Check footer
-        assert "━━━━━━━━━━━━━━━━━" in full_text
-        assert "🤖 *Powered by ElvAgent*" in full_text
-        assert "Automated AI news delivered hourly" in full_text
+        assert "follow for daily AI drops" in full_text
 
     def test_format_enhanced_preserves_markdown(self, sample_category_messages):
         """Test that markdown formatting from SocialFormatter is preserved."""
@@ -437,7 +434,6 @@ class TestTelegramFormatterEnhanced:
         result = formatter.format_enhanced(sample_category_messages)
         full_text = "\n".join(result)
 
-        # Verify markdown is present (not escaped away)
-        # The formatted_text from sample fixtures contains markdown
-        assert "*" in full_text or "**" in full_text  # Bold markers
-        assert "[" in full_text and "]" in full_text  # Link markers
+        # Verify markdown links are present (not escaped away)
+        assert "[" in full_text and "](" in full_text  # Link markers
+        assert "→" in full_text  # Arrow prefixes for links
